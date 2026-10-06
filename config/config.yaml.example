@@ -1,0 +1,12 @@
+# 初回の install が実ファイルを生成する。このファイルはひな型であり、起動には使わない。
+# Linux:    ~/.config/study-code-server/config.yaml
+# Windows:  %USERPROFILE%\.config\study-code-server\config.yaml
+#
+# password は install が生成する。実ファイルをリポジトリへ置かない。
+
+bind-addr: 0.0.0.0:8000
+auth: password
+password: replace-with-generated-password
+cert: false
+disable-telemetry: true
+disable-update-check: true
