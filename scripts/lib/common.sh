@@ -176,6 +176,7 @@ code_server_args() {
     "--config" "${CODE_SERVER_CONFIG_FILE}" \
     "--bind-addr" "${CODE_SERVER_BIND_ADDR}" \
     "--auth" "password" \
+    "--ignore-last-opened" \
     "--user-data-dir" "${CODE_SERVER_USER_DATA_DIR}" \
     "--extensions-dir" "${CODE_SERVER_EXTENSIONS_DIR}" \
     "${CODE_SERVER_WORKSPACE}"

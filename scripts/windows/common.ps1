@@ -228,6 +228,8 @@ function Get-CodeServerArguments {
         "--config", $Config.ConfigFile,
         "--bind-addr", $Config.BindAddr,
         "--auth", "password",
+        # 前回開いたパスより、この起動で指定したワークスペースを優先する。
+        "--ignore-last-opened",
         "--user-data-dir", $Config.UserDataDir,
         "--extensions-dir", $Config.ExtensionsDir,
         $Config.Workspace

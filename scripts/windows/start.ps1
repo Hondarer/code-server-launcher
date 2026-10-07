@@ -17,7 +17,7 @@ $config = Get-StudyConfig
 if (-not (Test-CodeServerInstalled -Config $config)) {
     throw "code-server が未導入です。先に scripts\windows\install.ps1 を実行してください。"
 }
-if (-not (Test-Path -LiteralPath $config.Workspace)) {
+if (-not (Test-Path -LiteralPath $config.Workspace -PathType Container)) {
     throw "ワークスペースがありません: $($config.Workspace)"
 }
 

@@ -26,7 +26,20 @@ study-code-server/
 | TLS | 無効 (`cert: false`) |
 | 対象 | Linux x86_64、Windows amd64 |
 
-ワークスペースの初期値はこのリポジトリです。変更する場合は起動前に `CODE_SERVER_WORKSPACE` を指定します。
+ワークスペース（起動時に開くフォルダ）の初期値はこのリポジトリです。`install.ps1` / `install.sh` にフォルダ指定オプションはありません。変更する場合は、`install` 時ではなく起動前に `CODE_SERVER_WORKSPACE` を指定します。OS のホームディレクトリや本体の配置先は変更しません。
+
+```powershell
+$env:CODE_SERVER_WORKSPACE = "D:\work\my-project"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1 -Restart
+# リポジトリを開く既定値に戻す
+Remove-Item Env:CODE_SERVER_WORKSPACE
+```
+
+```bash
+CODE_SERVER_WORKSPACE="$HOME/work/my-project" ./scripts/linux/start.sh --restart
+```
+
+両OSとも `--ignore-last-opened` を付け、前回開いたフォルダより起動時の指定を優先します。既存のブラウザURLに `?folder=...` / `?workspace=...` が付いている場合は、そのURLの指定が優先されるため、`http://localhost:8000/` を開き直してください。Linux / WSL では `http://127.0.0.1:8000/` を開き直してください。
 
 ## 前提
 
@@ -42,7 +55,7 @@ Windows:
 - `curl.exe` と `tar.exe`（Windows 10 以降の標準添付）
 - スクリプト内の日本語は UTF-8 BOM で保存してある
 
-起動は、ユーザーがシェルで `start` スクリプトを実行する方法です。code-server はその端末のフォアグラウンドで動き、Ctrl+C か別の端末からの `stop` で終わります。このリポジトリの動作確認環境は WSL2 上の Oracle Linux 8 です。
+起動は、ユーザーがシェルで `start` スクリプトを実行する方法です。code-server はその端末のフォアグラウンドで動き、Ctrl+C か別の端末からの `stop` で終わります。このリポジトリの動作確認環境は WSL2 上の Oracle Linux 8 と Windows 11 Pro for Workstations（PowerShell 5.1）です。
 
 ## Linux / WSL
 
