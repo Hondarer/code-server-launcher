@@ -1,9 +1,9 @@
-﻿# study-code-server の Windows スクリプト共通処理。
+﻿# code-server-launcher の Windows スクリプト共通処理。
 # 各スクリプトからドットソースする。直接の起動は想定しない。
 
 Set-StrictMode -Version 2.0
 
-function Get-StudyConfig {
+function Get-LauncherConfig {
     $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
     $versionFile = Join-Path $repoRoot "version.env"
     if (-not (Test-Path -LiteralPath $versionFile)) {
@@ -49,10 +49,9 @@ function Get-StudyConfig {
     $version = $values["CODE_SERVER_VERSION"]
     $port = $values["CODE_SERVER_PORT"]
     $bindHost = $values["CODE_SERVER_BIND_HOST"]
-    $base = Join-Path $env:LOCALAPPDATA "study-code-server"
+    $base = Join-Path $env:LOCALAPPDATA "code-server-launcher"
     $installDir = Join-Path $base ("code-server-" + $version)
-    $stateDir = Join-Path $base "state"
-    $configDir = Join-Path $env:USERPROFILE ".config\study-code-server"
+    $configDir = Join-Path $env:USERPROFILE ".config\code-server-launcher"
 
     return [pscustomobject]@{
         RepoRoot       = $repoRoot
@@ -72,12 +71,9 @@ function Get-StudyConfig {
         ConfigFile     = Join-Path $configDir "config.yaml"
         UserDataDir    = Join-Path $base "user-data"
         ExtensionsDir  = Join-Path $base "extensions"
-        # 以前の版がバックグラウンド起動で使っていた場所とログオンタスク名。uninstall.ps1 の後片付けにだけ使う。
-        StateDir       = $stateDir
         CacheDir       = Join-Path $base "cache"
         # code-server が --user-data-dir と無関係に使う既定のデータ置き場。coder-logs と heartbeat を書く。
         SharedDataDir  = Join-Path $env:LOCALAPPDATA "code-server\Data"
-        TaskName       = "study-code-server"
     }
 }
 
@@ -87,11 +83,11 @@ function Assert-WindowsAmd64 {
         $arch = $env:PROCESSOR_ARCHITEW6432
     }
     if ($arch -ne "AMD64") {
-        throw "このサンプルが検証している Windows アーキテクチャは amd64 です (現在: $arch)。"
+        throw "このツールが検証している Windows アーキテクチャは amd64 です (現在: $arch)。"
     }
 }
 
-function New-StudyPassword {
+function New-LauncherPassword {
     $bytes = New-Object byte[] 24
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
     try {
@@ -107,7 +103,7 @@ function New-StudyPassword {
     return $builder.ToString()
 }
 
-function Protect-StudyConfigFile {
+function Protect-LauncherConfigFile {
     param([string]$Path)
     $acl = New-Object System.Security.AccessControl.FileSecurity
     $acl.SetAccessRuleProtection($true, $false)
@@ -121,7 +117,7 @@ function Protect-StudyConfigFile {
     [System.IO.File]::SetAccessControl($Path, $acl)
 }
 
-function Write-StudyTextFile {
+function Write-LauncherTextFile {
     param(
         [string]$Path,
         [string]$Content
@@ -130,7 +126,7 @@ function Write-StudyTextFile {
     [System.IO.File]::WriteAllText($Path, $Content, $utf8)
 }
 
-function Update-StudyCodeServerConfig {
+function Update-LauncherCodeServerConfig {
     param(
         $Config,
         [ValidateSet("Ensure", "Reset")]
@@ -142,7 +138,7 @@ function Update-StudyCodeServerConfig {
     $password = $null
 
     if (-not $exists) {
-        $password = New-StudyPassword
+        $password = New-LauncherPassword
         $content = @(
             "bind-addr: $($Config.BindAddr)"
             "auth: password"
@@ -151,8 +147,8 @@ function Update-StudyCodeServerConfig {
             "disable-telemetry: true"
             "disable-update-check: true"
         ) -join "`r`n"
-        Write-StudyTextFile -Path $Config.ConfigFile -Content ($content + "`r`n")
-        Protect-StudyConfigFile -Path $Config.ConfigFile
+        Write-LauncherTextFile -Path $Config.ConfigFile -Content ($content + "`r`n")
+        Protect-LauncherConfigFile -Path $Config.ConfigFile
         return $password
     }
 
@@ -161,7 +157,7 @@ function Update-StudyCodeServerConfig {
     $sawBind = $false
 
     if ($Mode -eq "Reset") {
-        $password = New-StudyPassword
+        $password = New-LauncherPassword
         $rendered = @{
             "bind-addr"             = "bind-addr: $($Config.BindAddr)"
             "auth"                  = "auth: password"
@@ -216,8 +212,8 @@ function Update-StudyCodeServerConfig {
     }
 
     $text = ($out -join "`r`n") + "`r`n"
-    Write-StudyTextFile -Path $Config.ConfigFile -Content $text
-    Protect-StudyConfigFile -Path $Config.ConfigFile
+    Write-LauncherTextFile -Path $Config.ConfigFile -Content $text
+    Protect-LauncherConfigFile -Path $Config.ConfigFile
     return $password
 }
 
@@ -241,7 +237,7 @@ function Test-CodeServerInstalled {
     return (Test-Path -LiteralPath $Config.NodeExe) -and (Test-Path -LiteralPath (Join-Path $Config.AppDir "package.json"))
 }
 
-function Get-StudyCodeServerProcessIds {
+function Get-LauncherCodeServerProcessIds {
     param($Config)
     $marker = [string]$Config.ConfigFile
     $found = @()
@@ -262,18 +258,18 @@ function Get-StudyCodeServerProcessIds {
 }
 
 # ポートで待ち受けているプロセスの PID を返す。netstat の出力と違い、表示言語に左右されない。
-function Get-StudyPortOwnerIds {
+function Get-LauncherPortOwnerIds {
     param([int]$Port)
     $connections = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
     return @($connections | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_.OwningProcess } | Sort-Object -Unique)
 }
 
-function Test-StudyPortListening {
+function Test-LauncherPortListening {
     param([int]$Port)
-    return @(Get-StudyPortOwnerIds -Port $Port).Count -gt 0
+    return @(Get-LauncherPortOwnerIds -Port $Port).Count -gt 0
 }
 
-function Get-StudyHttpStatus {
+function Get-LauncherHttpStatus {
     param([int]$Port)
     try {
         $request = [System.Net.HttpWebRequest]::Create("http://127.0.0.1:$Port/")
@@ -307,9 +303,9 @@ function Get-StudyHttpStatus {
 
 # Windows には外部のコンソールプロセスへ穏やかな終了を送る手段が乏しいため、プロセスツリーを強制終了する。
 # 通常の停止は、起動したウィンドウでの Ctrl+C を勧める。
-function Stop-StudyCodeServer {
+function Stop-LauncherCodeServer {
     param($Config)
-    $ids = @(Get-StudyCodeServerProcessIds -Config $Config)
+    $ids = @(Get-LauncherCodeServerProcessIds -Config $Config)
     if ($ids.Count -eq 0) {
         return $false
     }
@@ -320,7 +316,7 @@ function Stop-StudyCodeServer {
     return $true
 }
 
-function Write-StudyEndpoints {
+function Write-LauncherEndpoints {
     param($Config)
     Write-Output "接続先: http://127.0.0.1:$($Config.Port)/"
     Write-Output "同じ Windows 上のブラウザからは http://localhost:$($Config.Port)/ で接続します。"

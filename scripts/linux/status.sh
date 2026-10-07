@@ -15,7 +15,8 @@ echo "ワークスペース: ${CODE_SERVER_WORKSPACE}"
 
 if code_server_installed; then
   echo "導入先: ${CODE_SERVER_INSTALL_DIR}"
-  echo "バージョン: $("${CODE_SERVER_BIN}" --config "${CODE_SERVER_CONFIG_FILE}" --version)"
+  # code-server を実行すると、設定ファイルが無い場合に既定の内容で作ってしまうので、package.json から読む。
+  echo "バージョン: $(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "${CODE_SERVER_INSTALL_DIR}/package.json")"
 else
   echo "導入先: 未導入"
 fi

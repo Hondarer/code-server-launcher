@@ -1,6 +1,6 @@
 # 初回の install が実ファイルを生成する。このファイルはひな型であり、起動には使わない。
-# Linux:    ~/.config/study-code-server/config.yaml
-# Windows:  %USERPROFILE%\.config\study-code-server\config.yaml
+# Linux:    ~/.config/code-server-launcher/config.yaml
+# Windows:  %USERPROFILE%\.config\code-server-launcher\config.yaml
 #
 # password は install が生成する。実ファイルをリポジトリへ置かない。
 

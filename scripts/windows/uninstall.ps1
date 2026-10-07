@@ -1,6 +1,5 @@
 ﻿# code-server の本体を削除する。
 # 設定とユーザーデータは残す。それらも消す場合は -Purge を付ける。
-# 以前登録したログオンタスクが残っていれば削除する。
 
 [CmdletBinding()]
 param(
@@ -12,22 +11,20 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "common.ps1")
 
-$config = Get-StudyConfig
+$config = Get-LauncherConfig
 & (Join-Path $PSScriptRoot "stop.ps1")
-
-Unregister-ScheduledTask -TaskName $config.TaskName -Confirm:$false -ErrorAction SilentlyContinue
 
 if (Test-Path -LiteralPath $config.InstallDir) {
     Remove-Item -LiteralPath $config.InstallDir -Recurse -Force
 }
 
 if ($Purge) {
-    foreach ($dir in @($config.ConfigDir, $config.UserDataDir, $config.ExtensionsDir, $config.StateDir, $config.CacheDir)) {
+    foreach ($dir in @($config.ConfigDir, $config.UserDataDir, $config.ExtensionsDir, $config.CacheDir)) {
         if (Test-Path -LiteralPath $dir) {
             Remove-Item -LiteralPath $dir -Recurse -Force
         }
     }
-    # 既定のデータ置き場はほかの code-server と共有するので、このサンプルが書くものだけを消す。
+    # 既定のデータ置き場はほかの code-server と共有するので、このツールが書くものだけを消す。
     foreach ($name in @("coder-logs", "heartbeat")) {
         $target = Join-Path $config.SharedDataDir $name
         if (Test-Path -LiteralPath $target) {

@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/common.sh"
 
 require_cmd curl tar sha256sum python3 openssl
-[[ "$(uname -m)" == "x86_64" ]] || die "このサンプルが検証している Linux アーキテクチャは x86_64 です (現在: $(uname -m))。"
+[[ "$(uname -m)" == "x86_64" ]] || die "このツールが検証している Linux アーキテクチャは x86_64 です (現在: $(uname -m))。"
 
 ensure_dirs
 

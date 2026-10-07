@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# study-code-server の Linux / WSL スクリプト共通処理。
+# code-server-launcher の Linux / WSL スクリプト共通処理。
 # 各スクリプトから source する。直接は実行しない。
 
-if [[ -z "${STUDY_CODE_SERVER_ROOT:-}" ]]; then
+if [[ -z "${CODE_SERVER_LAUNCHER_ROOT:-}" ]]; then
   _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  STUDY_CODE_SERVER_ROOT="$(cd "${_lib_dir}/../.." && pwd)"
+  CODE_SERVER_LAUNCHER_ROOT="$(cd "${_lib_dir}/../.." && pwd)"
 fi
 
 _saved_port="${CODE_SERVER_PORT:-}"
@@ -13,7 +13,7 @@ _saved_host="${CODE_SERVER_BIND_HOST:-}"
 _saved_workspace="${CODE_SERVER_WORKSPACE:-}"
 
 # shellcheck disable=SC1091
-source "${STUDY_CODE_SERVER_ROOT}/version.env"
+source "${CODE_SERVER_LAUNCHER_ROOT}/version.env"
 
 if [[ -n "${_saved_port}" ]]; then
   CODE_SERVER_PORT="${_saved_port}"
@@ -24,7 +24,7 @@ fi
 if [[ -n "${_saved_workspace}" ]]; then
   CODE_SERVER_WORKSPACE="${_saved_workspace}"
 else
-  CODE_SERVER_WORKSPACE="${STUDY_CODE_SERVER_ROOT}"
+  CODE_SERVER_WORKSPACE="${CODE_SERVER_LAUNCHER_ROOT}"
 fi
 unset _saved_port _saved_host _saved_workspace
 
@@ -33,18 +33,16 @@ CODE_SERVER_INSTALL_DIR="${HOME}/.local/lib/code-server-${CODE_SERVER_VERSION}"
 CODE_SERVER_BIN_DIR="${CODE_SERVER_INSTALL_DIR}/bin"
 CODE_SERVER_BIN="${CODE_SERVER_BIN_DIR}/code-server"
 CODE_SERVER_BIN_LINK="${HOME}/.local/bin/code-server"
-CODE_SERVER_CONFIG_DIR="${HOME}/.config/study-code-server"
+CODE_SERVER_CONFIG_DIR="${HOME}/.config/code-server-launcher"
 CODE_SERVER_CONFIG_FILE="${CODE_SERVER_CONFIG_DIR}/config.yaml"
-CODE_SERVER_DATA_DIR="${HOME}/.local/share/study-code-server"
+CODE_SERVER_DATA_DIR="${HOME}/.local/share/code-server-launcher"
 CODE_SERVER_USER_DATA_DIR="${CODE_SERVER_DATA_DIR}/user-data"
 CODE_SERVER_EXTENSIONS_DIR="${CODE_SERVER_DATA_DIR}/extensions"
-# 以前の版がバックグラウンド起動の PID とログを置いていた場所。現在は uninstall.sh --purge が消すだけ。
-CODE_SERVER_STATE_DIR="${HOME}/.local/state/study-code-server"
-CODE_SERVER_CACHE_DIR="${HOME}/.cache/study-code-server"
+CODE_SERVER_CACHE_DIR="${HOME}/.cache/code-server-launcher"
 # code-server が --user-data-dir と無関係に使う既定のデータ置き場。coder-logs と heartbeat を書く。
-# ほかの code-server と共有するので、このサンプルは自分が書くものだけを消す。
+# ほかの code-server と共有するので、このツールは自分が書くものだけを消す。
 CODE_SERVER_SHARED_DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/code-server"
-CODE_SERVER_UNIT_NAME="study-code-server.service"
+CODE_SERVER_UNIT_NAME="code-server-launcher.service"
 CODE_SERVER_ASSET="code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz"
 CODE_SERVER_ASSET_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/${CODE_SERVER_ASSET}"
 
@@ -208,7 +206,7 @@ user_service_active() {
   systemd_user_available && systemctl --user is-active --quiet "${CODE_SERVER_UNIT_NAME}" >/dev/null 2>&1
 }
 
-# このサンプルの設定ファイルを指定して動いている code-server の PID を出す。
+# このツールの設定ファイルを指定して動いている code-server の PID を出す。
 code_server_pids() {
   local pid_path pid cmdline
   for pid_path in /proc/[0-9]*; do

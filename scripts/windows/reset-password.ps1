@@ -9,9 +9,9 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "common.ps1")
 
-$config = Get-StudyConfig
-$running = @(Get-StudyCodeServerProcessIds -Config $config)
-$password = Update-StudyCodeServerConfig -Config $config -Mode Reset
+$config = Get-LauncherConfig
+$running = @(Get-LauncherCodeServerProcessIds -Config $config)
+$password = Update-LauncherCodeServerConfig -Config $config -Mode Reset
 if ($running.Count -gt 0) {
     & (Join-Path $PSScriptRoot "stop.ps1")
     Write-Output "起動中のプロセスを停止しました。新しいパスワードは、次の start.ps1 から反映されます。"

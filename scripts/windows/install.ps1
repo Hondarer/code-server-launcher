@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "common.ps1")
 
 Assert-WindowsAmd64
-$config = Get-StudyConfig
+$config = Get-LauncherConfig
 
 foreach ($dir in @(
         $config.BaseDir,
@@ -53,11 +53,11 @@ else {
 
 $nodeReady = Test-CodeServerInstalled -Config $config
 if (-not $nodeReady) {
-    $running = @(Get-StudyCodeServerProcessIds -Config $config)
+    $running = @(Get-LauncherCodeServerProcessIds -Config $config)
     if ($running.Count -gt 0) {
         throw "code-server が動作中です。入れ直す前に scripts\windows\stop.ps1 を実行してください。"
     }
-    $temp = Join-Path ([System.IO.Path]::GetTempPath()) ("study-code-server-" + [guid]::NewGuid().ToString("n"))
+    $temp = Join-Path ([System.IO.Path]::GetTempPath()) ("code-server-launcher-" + [guid]::NewGuid().ToString("n"))
     New-Item -ItemType Directory -Force -Path $temp | Out-Null
     try {
         & tar.exe -xzf $archive -C $temp
@@ -84,7 +84,7 @@ else {
     Write-Output "導入済みです: $($config.InstallDir)"
 }
 
-$created = Update-StudyCodeServerConfig -Config $config -Mode Ensure
+$created = Update-LauncherCodeServerConfig -Config $config -Mode Ensure
 if ($created) {
     Write-Output "設定ファイルを作成しました: $($config.ConfigFile)"
     Write-Output "ログインパスワード: $created"

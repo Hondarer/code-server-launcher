@@ -1,6 +1,6 @@
-# study-code-server
+# code-server-launcher
 
-[code-server](https://github.com/coder/code-server) を、Linux (WSL を含む) と Windows のユーザー領域へ導入し、ポート 8000 で動かすためのスクリプト集です。導入する版は `version.env` で固定し、配布アーカイブの SHA-256 を照合してから展開します。導入と、コマンドによる起動・停止に管理者権限は要りません。Linux でユーザーサービスにする場合だけ、linger の有効化に権限が要ることがあります (「応用: systemd ユーザーサービス」を参照)。
+[code-server](https://github.com/coder/code-server) を、Linux (WSL を含む) と Windows のユーザー領域へ導入し、ポート 8000 で動かすためのスクリプト集です。導入する版は `version.env` で固定し、配布アーカイブの SHA-256 を照合してから展開します。Coder の公式プロジェクトではありません。導入と、コマンドによる起動・停止に管理者権限は要りません。Linux でユーザーサービスにする場合だけ、linger の有効化に権限が要ることがあります (「応用: systemd ユーザーサービス」を参照)。
 
 | 項目 | 値 |
 |---|---|
@@ -16,7 +16,7 @@
 ## 構成
 
 ```text
-study-code-server/
+code-server-launcher/
 ├── version.env                  # 版、待受の既定値、配布アーカイブの SHA-256
 ├── config/config.yaml.example   # 設定ファイルのひな型 (起動には使わない)
 └── scripts/
@@ -82,7 +82,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1
 
 | スクリプト | 動作 |
 |---|---|
-| `install.sh` | 配布アーカイブを `~/.cache/study-code-server/` へ取得し、SHA-256 を照合して `~/.local/lib/code-server-<版>` へ展開する。照合済みのアーカイブがあれば再取得しない。`~/.local/bin/code-server` にリンクを張り、設定ファイルを用意する。code-server は起動しない |
+| `install.sh` | 配布アーカイブを `~/.cache/code-server-launcher/` へ取得し、SHA-256 を照合して `~/.local/lib/code-server-<版>` へ展開する。照合済みのアーカイブがあれば再取得しない。`~/.local/bin/code-server` にリンクを張り、設定ファイルを用意する。code-server は起動しない |
 | `start.sh [--restart]` | このシェルを code-server に置き換えて、フォアグラウンドで動かす。ログはその端末に出る |
 | `stop.sh` | 起動中の code-server に TERM を送り、5 秒で終わらなければ KILL する |
 | `status.sh` | 版、待受、ワークスペース、導入先、設定、プロセス、ユーザーサービス、ポート、HTTP 応答を表示する。パスワードは表示しない。待受が無ければ終了コード 1 |
@@ -94,14 +94,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1
 
 | スクリプト | 動作 |
 |---|---|
-| `install.ps1` | 配布アーカイブを `%LOCALAPPDATA%\study-code-server\cache\` へ取得し、SHA-256 を照合して `%LOCALAPPDATA%\study-code-server\code-server-<版>` へ展開する。設定ファイルを用意する。code-server は起動しない |
+| `install.ps1` | 配布アーカイブを `%LOCALAPPDATA%\code-server-launcher\cache\` へ取得し、SHA-256 を照合して `%LOCALAPPDATA%\code-server-launcher\code-server-<版>` へ展開する。設定ファイルを用意する。code-server は起動しない |
 | `start.ps1 [-Restart]` | このウィンドウのフォアグラウンドで、同梱の `node.exe` から code-server を動かす。ログはそのウィンドウに出る |
 | `stop.ps1` | 起動中の code-server のプロセスツリーを `taskkill /T /F` で強制終了する |
-| `status.ps1` | `status.sh` と同じ項目 (ユーザーサービスを除く) に加え、ポートで待ち受けているプロセスの PID と、それがこのサンプルのものかを表示する。待受が無ければ終了コード 1 |
+| `status.ps1` | `status.sh` と同じ項目 (ユーザーサービスを除く) に加え、ポートで待ち受けているプロセスの PID と、それがこのツールのものかを表示する。待受が無ければ終了コード 1 |
 | `reset-password.ps1` | パスワードを生成し直して表示する |
 | `uninstall.ps1 [-Purge]` | 本体を削除する。`-Purge` で設定とデータも削除する |
 
-Windows には常駐の仕組み (サービス、ログオンタスク) はありません。以前の手順で登録したログオンタスク `study-code-server` が残っていれば、`uninstall.ps1` が削除します。
+Windows には常駐の仕組み (サービス、ログオンタスク) はありません。
 
 ## 起動と停止
 
@@ -110,7 +110,7 @@ Windows には常駐の仕組み (サービス、ログオンタスク) はあ�
 1. code-server が導入済みであること、ワークスペースのフォルダがあること
 2. (Linux) ユーザーサービスが動いていないこと。動いていれば、このシェルでは起動せず接続先を表示して終わる (終了コード 0、`--restart` 付きなら 1)。登録済みで停止中なら、`user-service.sh start` か `disable` を案内して終了コード 1 で終わる
 3. 設定ファイルがあること。無ければパスワード付きで作り、そのパスワードを表示する。あれば `bind-addr` を今回の待受に合わせる
-4. このサンプルの code-server がすでに動いていないこと。動いていれば接続先を表示して終わる。`--restart` / `-Restart` 付きなら、止めてから起動し直す
+4. このツールの code-server がすでに動いていないこと。動いていれば接続先を表示して終わる。`--restart` / `-Restart` 付きなら、止めてから起動し直す
 5. ポートを別のプロセスが使っていないこと
 
 起動時には `VSCODE_IPC_HOOK_CLI` と `ELECTRON_RUN_AS_NODE` を外します。VS Code の端末では、これらがあると code-server が待受を始めずに VS Code 側へ処理を返して終わるためです。
@@ -132,7 +132,7 @@ code-server には次の引数を渡します。
 - Linux の `stop.sh` は TERM を送り、5 秒たっても残っていれば KILL します。ユーザーサービスが動いているあいだは止めず、`user-service.sh stop` を案内して終了コード 1 で終わります。
 - Windows の `stop.ps1` は強制終了です。Windows には外のプロセスへ穏やかな終了を送る手段が乏しいためです。`start.ps1 -Restart`、`reset-password.ps1`、`uninstall.ps1` も、起動中ならこの方法で止めます。
 
-`stop` が止めるのは、このサンプルの設定ファイルを `--config` で指定しているプロセスだけです。同じマシンの別の code-server には触れません。
+`stop` が止めるのは、このツールの設定ファイルを `--config` で指定しているプロセスだけです。同じマシンの別の code-server には触れません。
 
 ## 設定値と環境変数
 
@@ -200,11 +200,11 @@ disable-update-check: true
 ファイルの権限は、Linux では `600` (ディレクトリは `700`)、Windows では継承を切って現在のユーザーだけに絞ります。パスワードは次で確かめます。
 
 ```bash
-grep '^password:' ~/.config/study-code-server/config.yaml
+grep '^password:' ~/.config/code-server-launcher/config.yaml
 ```
 
 ```powershell
-Select-String -Path "$env:USERPROFILE\.config\study-code-server\config.yaml" -Pattern '^password:'
+Select-String -Path "$env:USERPROFILE\.config\code-server-launcher\config.yaml" -Pattern '^password:'
 ```
 
 `reset-password` は、新しいパスワードを生成して表示します。上の 6 つのキーを書き直し、`hashed-password` があれば取り除きます。ほかの行はそのまま残します。
@@ -224,12 +224,11 @@ Linux / WSL:
 |---|---|---|---|
 | 本体 | `~/.local/lib/code-server-4.140.0/` | 削除 | 削除 |
 | コマンド | `~/.local/bin/code-server` (本体へのリンク) | 削除 | 削除 |
-| 設定 | `~/.config/study-code-server/config.yaml` | 残す | 削除 |
-| ユーザーデータ | `~/.local/share/study-code-server/user-data/` | 残す | 削除 |
-| 拡張機能 | `~/.local/share/study-code-server/extensions/` | 残す | 削除 |
-| 配布アーカイブ | `~/.cache/study-code-server/` | 残す | 削除 |
+| 設定 | `~/.config/code-server-launcher/config.yaml` | 残す | 削除 |
+| ユーザーデータ | `~/.local/share/code-server-launcher/user-data/` | 残す | 削除 |
+| 拡張機能 | `~/.local/share/code-server-launcher/extensions/` | 残す | 削除 |
+| 配布アーカイブ | `~/.cache/code-server-launcher/` | 残す | 削除 |
 | code-server 自身のログ | `~/.local/share/code-server/` の `coder-logs/` と `heartbeat` | 残す | この 2 つだけ削除 |
-| 以前の版の作業領域 | `~/.local/state/study-code-server/` | 残す | 削除 |
 
 `$XDG_DATA_HOME` を設定している場合、code-server 自身のログは `$XDG_DATA_HOME/code-server/` にあります。
 
@@ -237,15 +236,14 @@ Windows:
 
 | 用途 | パス | `uninstall.ps1` | `-Purge` |
 |---|---|---|---|
-| 本体 | `%LOCALAPPDATA%\study-code-server\code-server-4.140.0\` | 削除 | 削除 |
-| 設定 | `%USERPROFILE%\.config\study-code-server\config.yaml` | 残す | 削除 |
-| ユーザーデータ | `%LOCALAPPDATA%\study-code-server\user-data\` | 残す | 削除 |
-| 拡張機能 | `%LOCALAPPDATA%\study-code-server\extensions\` | 残す | 削除 |
-| 配布アーカイブ | `%LOCALAPPDATA%\study-code-server\cache\` | 残す | 削除 |
+| 本体 | `%LOCALAPPDATA%\code-server-launcher\code-server-4.140.0\` | 削除 | 削除 |
+| 設定 | `%USERPROFILE%\.config\code-server-launcher\config.yaml` | 残す | 削除 |
+| ユーザーデータ | `%LOCALAPPDATA%\code-server-launcher\user-data\` | 残す | 削除 |
+| 拡張機能 | `%LOCALAPPDATA%\code-server-launcher\extensions\` | 残す | 削除 |
+| 配布アーカイブ | `%LOCALAPPDATA%\code-server-launcher\cache\` | 残す | 削除 |
 | code-server 自身のログ | `%LOCALAPPDATA%\code-server\Data\` の `coder-logs\` と `heartbeat` | 残す | この 2 つだけ削除 |
-| 以前の版の作業領域 | `%LOCALAPPDATA%\study-code-server\state\` | 残す | 削除 |
 
-フォルダ名を `code-server` ではなく `study-code-server` にしているのは、code-server の既定の置き場所と分けるためです。Linux の `~/.config/code-server/config.yaml` と `~/.local/share/code-server/` は、`--config` を付けずに起動した code-server が読み書きします。同じマシンの VS Code や、既定の場所を使う別の code-server とは、設定も拡張機能も共有しません。
+フォルダ名を `code-server` ではなく `code-server-launcher` にしているのは、code-server の既定の置き場所と分けるためです。Linux の `~/.config/code-server/config.yaml` と `~/.local/share/code-server/` は、`--config` を付けずに起動した code-server が読み書きします。同じマシンの VS Code や、既定の場所を使う別の code-server とは、設定も拡張機能も共有しません。
 
 ### 中身
 
@@ -276,13 +274,13 @@ code-server は `--user-data-dir` の指定と関係なく、既定の置き場�
 | 拡張機能をすべて外す | `extensions/` を消す |
 | ログを片付ける | `user-data/logs/` の古いフォルダと、code-server 自身の `coder-logs/` を消す |
 
-拡張機能は画面の拡張機能ビューから入れます。コマンドラインから入れる場合は、`--config`、`--user-data-dir`、`--extensions-dir` を付けます。付けないと、既定の `~/.local/share/code-server/extensions` に入ってしまい、このサンプルの code-server からは見えません。`--config` を省くと、既定の `~/.config/code-server/config.yaml` も作られます。
+拡張機能は画面の拡張機能ビューから入れます。コマンドラインから入れる場合は、`--config`、`--user-data-dir`、`--extensions-dir` を付けます。付けないと、既定の `~/.local/share/code-server/extensions` に入ってしまい、このツールの code-server からは見えません。`--config` を省くと、既定の `~/.config/code-server/config.yaml` も作られます。
 
 ```bash
 ~/.local/bin/code-server \
-  --config ~/.config/study-code-server/config.yaml \
-  --user-data-dir ~/.local/share/study-code-server/user-data \
-  --extensions-dir ~/.local/share/study-code-server/extensions \
+  --config ~/.config/code-server-launcher/config.yaml \
+  --user-data-dir ~/.local/share/code-server-launcher/user-data \
+  --extensions-dir ~/.local/share/code-server-launcher/extensions \
   --install-extension <拡張機能 ID>
 ```
 
@@ -298,7 +296,7 @@ WSL の中からは `http://127.0.0.1:8000/` です。WSL2 の localhost 転送�
 
 ```powershell
 netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=8000 connectaddress=<WSL の IP> connectport=8000
-New-NetFirewallRule -DisplayName "study-code-server 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
+New-NetFirewallRule -DisplayName "code-server-launcher 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
 ```
 
 転送を外す場合は `netsh interface portproxy delete v4tov4 listenaddress=0.0.0.0 listenport=8000` です。
@@ -310,13 +308,13 @@ New-NetFirewallRule -DisplayName "study-code-server 8000" -Direction Inbound -Pr
 受信を通すには、管理者として開いた PowerShell でポート 8000 の規則を追加します。ポートで指定する規則なので、版を上げて `node.exe` のパスが変わってもそのまま効きます。
 
 ```powershell
-New-NetFirewallRule -DisplayName "study-code-server 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
+New-NetFirewallRule -DisplayName "code-server-launcher 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
 ```
 
 初回の起動で、Windows Defender ファイアウォールが `node.exe` の通信を許可するか尋ねることがあります。ここは「許可」を選びます。「キャンセル」を選ぶと、その `node.exe` の受信を止めるブロック規則が作られます。ブロック規則は許可規則より優先されるため、上のポート規則があっても接続できなくなります。その場合は、同じユーザーで管理者として開いた PowerShell からブロック規則を消します。
 
 ```powershell
-Get-NetFirewallApplicationFilter -Program "$env:LOCALAPPDATA\study-code-server\code-server-4.140.0\lib\node.exe" |
+Get-NetFirewallApplicationFilter -Program "$env:LOCALAPPDATA\code-server-launcher\code-server-4.140.0\lib\node.exe" |
   Get-NetFirewallRule | Where-Object Action -eq Block | Remove-NetFirewallRule
 ```
 
@@ -324,15 +322,15 @@ Get-NetFirewallApplicationFilter -Program "$env:LOCALAPPDATA\study-code-server\c
 
 | 表示 | 意味 |
 |---|---|
-| このサンプルの code-server | `start.ps1` で起動したもの |
-| このサンプルの node.exe。起動元のプロセスは終了済み | このサンプルの `node.exe` だが、起動元が残っていない |
-| 別のプロセス | このサンプル以外のプロセスがポートを使っている |
+| このツールの code-server | `start.ps1` で起動したもの |
+| このツールの node.exe。起動元のプロセスは終了済み | このツールの `node.exe` だが、起動元が残っていない |
+| 別のプロセス | このツール以外のプロセスがポートを使っている |
 
 展開先のパスが長くなる環境では、Windows の長いパスのサポートを有効にしてから `install.ps1` を再実行します。
 
 ## セキュリティ
 
-code-server はターミナルを含む開発環境です。このサンプルはパスワード認証を使い、TLS は使いません。待受が `0.0.0.0` のあいだは、届くネットワークからパスワードを試せます。インターネットへこのポートを転送せず、利用範囲は手元のマシンと信頼できる LAN に留めます。外へ出す場合は、TLS を終端するリバースプロキシの背後に置きます。
+code-server はターミナルを含む開発環境です。このツールはパスワード認証を使い、TLS は使いません。待受が `0.0.0.0` のあいだは、届くネットワークからパスワードを試せます。インターネットへこのポートを転送せず、利用範囲は手元のマシンと信頼できる LAN に留めます。外へ出す場合は、TLS を終端するリバースプロキシの背後に置きます。
 
 ## 版を上げる
 
@@ -353,7 +351,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1 
 他のマシンからは接続できなくなり、ファイアウォールの許可も要りません。ポート規則を追加していた場合は、管理者の PowerShell で外せます。ただし、WSL へのポート転送に同じ規則を使っている場合は残します。
 
 ```powershell
-Remove-NetFirewallRule -DisplayName "study-code-server 8000"
+Remove-NetFirewallRule -DisplayName "code-server-launcher 8000"
 ```
 
 既定の `0.0.0.0` へ戻す場合は、環境変数を消してから、新しい PowerShell で `-Restart` を付けて起動します。
@@ -381,7 +379,7 @@ systemd=true
 
 | 操作 | 内容 |
 |---|---|
-| `enable` | `~/.config/systemd/user/study-code-server.service` を書き、有効化して起動する。登録済みなら、止めてからユニットを書き直して起動し直す。linger も有効にする |
+| `enable` | `~/.config/systemd/user/code-server-launcher.service` を書き、有効化して起動する。登録済みなら、止めてからユニットを書き直して起動し直す。linger も有効にする |
 | `start` | 登録済みのサービスを起動する。すでに動いていれば接続先を表示する |
 | `stop` | サービスを停止する。自動起動の設定は残る |
 | `status` | `systemctl --user status`、linger、ポートを表示する。待受が無ければ終了コード 1 |
@@ -404,7 +402,7 @@ CODE_SERVER_BIND_HOST=127.0.0.1 ./scripts/linux/user-service.sh enable
 ユニットは `Type=simple` で、ワークスペースを作業ディレクトリにします。`VSCODE_IPC_HOOK_CLI` と `ELECTRON_RUN_AS_NODE` を外して起動し、異常終了したときは 3 秒後に再起動します (`Restart=on-failure`)。ログは journal に出ます。
 
 ```bash
-journalctl --user -u study-code-server.service -f
+journalctl --user -u code-server-launcher.service -f
 ```
 
 ### linger

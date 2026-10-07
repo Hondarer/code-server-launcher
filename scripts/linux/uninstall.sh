@@ -26,7 +26,7 @@ fi
 rm -rf "${CODE_SERVER_INSTALL_DIR}"
 
 if [[ "${purge}" -eq 1 ]]; then
-  rm -rf "${CODE_SERVER_CONFIG_DIR}" "${CODE_SERVER_DATA_DIR}" "${CODE_SERVER_STATE_DIR}" "${CODE_SERVER_CACHE_DIR}"
+  rm -rf "${CODE_SERVER_CONFIG_DIR}" "${CODE_SERVER_DATA_DIR}" "${CODE_SERVER_CACHE_DIR}"
   rm -rf "${CODE_SERVER_SHARED_DATA_DIR}/coder-logs"
   rm -f "${CODE_SERVER_SHARED_DATA_DIR}/heartbeat"
   rmdir "${CODE_SERVER_SHARED_DATA_DIR}" 2>/dev/null || true

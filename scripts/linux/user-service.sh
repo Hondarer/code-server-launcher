@@ -55,7 +55,7 @@ write_user_unit() {
   # WorkingDirectory= は引用符を解釈しないので、パスをそのまま書く。
   cat > "${CODE_SERVER_UNIT_FILE}" <<EOF
 [Unit]
-Description=study-code-server (code-server ${CODE_SERVER_BIND_ADDR})
+Description=code-server-launcher (code-server ${CODE_SERVER_BIND_ADDR})
 After=network-online.target
 Wants=network-online.target
 

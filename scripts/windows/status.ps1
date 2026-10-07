@@ -9,14 +9,16 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "common.ps1")
 
-$config = Get-StudyConfig
+$config = Get-LauncherConfig
 Write-Output "version.env: code-server $($config.Version)"
 Write-Output "待受: $($config.BindAddr)"
 Write-Output "ワークスペース: $($config.Workspace)"
 
 if (Test-CodeServerInstalled -Config $config) {
     Write-Output "導入先: $($config.InstallDir)"
-    & $config.NodeExe $config.AppDir --config $config.ConfigFile --version
+    # code-server を実行すると、設定ファイルが無い場合に既定の内容で作ってしまうので、package.json から読む。
+    $package = Get-Content -LiteralPath (Join-Path $config.AppDir "package.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    Write-Output "バージョン: $($package.version)"
 }
 else {
     Write-Output "導入先: 未導入"
@@ -40,7 +42,7 @@ else {
     Write-Output "設定: 未作成"
 }
 
-$running = @(Get-StudyCodeServerProcessIds -Config $config)
+$running = @(Get-LauncherCodeServerProcessIds -Config $config)
 if ($running.Count -gt 0) {
     Write-Output ("プロセス: running (pid " + ($running -join ", ") + ")")
 }
@@ -48,7 +50,7 @@ else {
     Write-Output "プロセス: stopped"
 }
 
-$owners = @(Get-StudyPortOwnerIds -Port $config.Port)
+$owners = @(Get-LauncherPortOwnerIds -Port $config.Port)
 $listening = $owners.Count -gt 0
 if ($listening) {
     Write-Output "ポート $($config.Port): listening"
@@ -59,10 +61,10 @@ if ($listening) {
         if ($null -ne $info) {
             $name = $info.Name
             if ($running -contains $ownerId -or $running -contains [int]$info.ParentProcessId) {
-                $label = "このサンプルの code-server"
+                $label = "このツールの code-server"
             }
             elseif ([string]$info.ExecutablePath -eq $config.NodeExe) {
-                $label = "このサンプルの node.exe。起動元のプロセスは終了済み。止めるには taskkill /PID $ownerId /T /F"
+                $label = "このツールの node.exe。起動元のプロセスは終了済み。止めるには taskkill /PID $ownerId /T /F"
             }
         }
         Write-Output "  pid $ownerId ($name): $label"
@@ -72,7 +74,7 @@ else {
     Write-Output "ポート $($config.Port): closed"
 }
 
-$http = Get-StudyHttpStatus -Port $config.Port
+$http = Get-LauncherHttpStatus -Port $config.Port
 Write-Output "HTTP http://127.0.0.1:$($config.Port)/ : $http"
 
 if (-not $listening) {
