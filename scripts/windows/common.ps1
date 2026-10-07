@@ -72,6 +72,7 @@ function Get-StudyConfig {
         ConfigFile     = Join-Path $configDir "config.yaml"
         UserDataDir    = Join-Path $base "user-data"
         ExtensionsDir  = Join-Path $base "extensions"
+        # 以前の版がバックグラウンド起動で使っていた場所とログオンタスク名。uninstall.ps1 の後片付けにだけ使う。
         StateDir       = $stateDir
         CacheDir       = Join-Path $base "cache"
         TaskName       = "study-code-server"

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # code-server の本体とシンボリックリンクを削除する。
-# 応用編のユーザーサービスが登録されていれば、それも外す。
+# 応用編のユーザーサービスが登録されていれば、user-service.sh disable で外す。
 # 設定とユーザーデータは残す。それらも消す場合は --purge を付ける。
 
 set -euo pipefail
@@ -17,7 +17,7 @@ elif [[ $# -gt 0 ]]; then
   die "使い方: $0 [--purge]"
 fi
 
-disable_user_service
+"${SCRIPT_DIR}/user-service.sh" disable
 "${SCRIPT_DIR}/stop.sh"
 
 if [[ -L "${CODE_SERVER_BIN_LINK}" ]]; then

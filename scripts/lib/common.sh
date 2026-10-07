@@ -38,11 +38,10 @@ CODE_SERVER_CONFIG_FILE="${CODE_SERVER_CONFIG_DIR}/config.yaml"
 CODE_SERVER_DATA_DIR="${HOME}/.local/share/study-code-server"
 CODE_SERVER_USER_DATA_DIR="${CODE_SERVER_DATA_DIR}/user-data"
 CODE_SERVER_EXTENSIONS_DIR="${CODE_SERVER_DATA_DIR}/extensions"
+# 以前の版がバックグラウンド起動の PID とログを置いていた場所。現在は uninstall.sh --purge が消すだけ。
 CODE_SERVER_STATE_DIR="${HOME}/.local/state/study-code-server"
 CODE_SERVER_CACHE_DIR="${HOME}/.cache/study-code-server"
 CODE_SERVER_UNIT_NAME="study-code-server.service"
-CODE_SERVER_UNIT_DIR="${HOME}/.config/systemd/user"
-CODE_SERVER_UNIT_FILE="${CODE_SERVER_UNIT_DIR}/${CODE_SERVER_UNIT_NAME}"
 CODE_SERVER_ASSET="code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz"
 CODE_SERVER_ASSET_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/${CODE_SERVER_ASSET}"
 
@@ -192,12 +191,7 @@ systemd_user_available() {
   systemctl --user show-environment >/dev/null 2>&1
 }
 
-require_systemd_user() {
-  if ! systemd_user_available; then
-    die "systemd のユーザーセッションが使えません。WSL では /etc/wsl.conf の [boot] systemd=true が必要です。"
-  fi
-}
-
+# 以下はユーザーサービスの状態を調べるだけの関数。登録と削除は user-service.sh が行う。
 user_service_exists() {
   systemd_user_available && systemctl --user cat "${CODE_SERVER_UNIT_NAME}" >/dev/null 2>&1
 }
@@ -208,73 +202,6 @@ user_service_enabled() {
 
 user_service_active() {
   systemd_user_available && systemctl --user is-active --quiet "${CODE_SERVER_UNIT_NAME}" >/dev/null 2>&1
-}
-
-quote_systemd_arg() {
-  python3 -c 'import shlex, sys; print(shlex.quote(sys.argv[1]))' "$1"
-}
-
-write_user_unit() {
-  local args_quoted="" arg
-  mkdir -p "${CODE_SERVER_UNIT_DIR}"
-  args_quoted="$(quote_systemd_arg "${CODE_SERVER_BIN}")"
-  while IFS= read -r arg; do
-    args_quoted+=" $(quote_systemd_arg "${arg}")"
-  done < <(code_server_args)
-  cat > "${CODE_SERVER_UNIT_FILE}" <<EOF
-[Unit]
-Description=study-code-server (code-server ${CODE_SERVER_BIND_ADDR})
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=$(quote_systemd_arg "${CODE_SERVER_WORKSPACE}")
-ExecStart=${args_quoted}
-UnsetEnvironment=VSCODE_IPC_HOOK_CLI ELECTRON_RUN_AS_NODE
-Restart=on-failure
-RestartSec=3
-KillMode=control-group
-
-[Install]
-WantedBy=default.target
-EOF
-}
-
-enable_linger() {
-  if loginctl enable-linger "${USER}" >/dev/null 2>&1 \
-    || sudo -n loginctl enable-linger "${USER}" >/dev/null 2>&1; then
-    echo "linger を有効にしました。ログアウト後もユーザーサービスは残ります。"
-    return 0
-  fi
-  echo "linger は有効になっていません。ログアウトするとユーザーサービスは停止します。"
-  echo "有効にするには: loginctl enable-linger ${USER}"
-}
-
-# 応用編のユーザーサービスを外す。未登録なら何もしない。
-disable_user_service() {
-  local wants="${CODE_SERVER_UNIT_DIR}/default.target.wants/${CODE_SERVER_UNIT_NAME}"
-  local removed=0
-  prepare_user_bus
-  if [[ -f "${CODE_SERVER_UNIT_FILE}" || -L "${wants}" ]]; then
-    removed=1
-  fi
-  if systemd_user_available && systemctl --user cat "${CODE_SERVER_UNIT_NAME}" >/dev/null 2>&1; then
-    systemctl --user disable --now "${CODE_SERVER_UNIT_NAME}" >/dev/null 2>&1 || true
-    systemctl --user reset-failed "${CODE_SERVER_UNIT_NAME}" >/dev/null 2>&1 || true
-    removed=1
-  fi
-  rm -f "${CODE_SERVER_UNIT_FILE}" "${wants}"
-  rm -f \
-    "${CODE_SERVER_STATE_DIR}/code-server.pid" \
-    "${CODE_SERVER_STATE_DIR}/code-server.log" \
-    "${CODE_SERVER_STATE_DIR}/supervisor"
-  if [[ "${removed}" -eq 1 ]]; then
-    if systemd_user_available; then
-      systemctl --user daemon-reload >/dev/null 2>&1 || true
-    fi
-    echo "ユーザーサービス ${CODE_SERVER_UNIT_NAME} を無効化してユニットを削除しました。"
-  fi
 }
 
 # このサンプルの設定ファイルを指定して動いている code-server の PID を出す。
@@ -327,8 +254,11 @@ port_is_listening() {
 }
 
 http_status() {
-  curl -sS -o /dev/null -w '%{http_code}' --max-time 3 \
-    "http://127.0.0.1:${CODE_SERVER_PORT}/" 2>/dev/null || printf '000'
+  local code
+  # 接続できない場合も curl は -w の 000 を出して非 0 で終わる。
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 3 \
+    "http://127.0.0.1:${CODE_SERVER_PORT}/" 2>/dev/null)" || true
+  printf '%s' "${code:-000}"
 }
 
 print_endpoints() {

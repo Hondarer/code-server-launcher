@@ -54,7 +54,7 @@ Windows:
 
 `install.sh` は初回だけ、ログインパスワードを標準出力と設定ファイルへ書きます。`start.sh` はこのシェルを code-server に置き換えます。ログはその端末に出ます。すでに同じ設定で起動している場合は、何もせず接続先を表示して戻ります。起動し直す場合は `./scripts/linux/start.sh --restart` です。VS Code の端末から実行しても code-server 自身が待受を始めるよう、起動時に `VSCODE_IPC_HOOK_CLI` を外します。
 
-`start.sh` はシェル起動だけを行います。ユーザーサービス `study-code-server.service` が有効なあいだは、二重起動を避けて終了します。登録と解除は「応用: systemd ユーザーサービス」です。`uninstall.sh` は、登録済みのユーザーサービスがあれば無効化してユニットを削除します。
+`start.sh` はシェル起動だけを行います。ユーザーサービス `study-code-server.service` が有効なあいだは、二重起動を避けて終了します。登録と解除は「応用: systemd ユーザーサービス」です。`uninstall.sh` は、登録済みのユーザーサービスがあれば `user-service.sh disable` で無効化してユニットを削除します。
 
 ```bash
 ./scripts/linux/stop.sh
@@ -195,7 +195,7 @@ systemd=true
 
 | 操作 | 内容 |
 |---|---|
-| `enable` | `~/.config/systemd/user/study-code-server.service` を書き、有効化して起動する。linger も有効にする |
+| `enable` | `~/.config/systemd/user/study-code-server.service` を書き、有効化して起動する。登録済みならユニットを書き直して再起動する。linger も有効にする |
 | `start` | 登録済みのサービスを起動する |
 | `stop` | サービスを停止する。自動起動の設定は残る |
 | `status` | `systemctl --user status`、linger、ポートを表示する |
@@ -217,7 +217,7 @@ journalctl --user -u study-code-server.service -f
 
 ユニットは `Type=simple` です。起動時に `VSCODE_IPC_HOOK_CLI` と `ELECTRON_RUN_AS_NODE` を外します。異常終了時は `Restart=on-failure` で再起動します。サービスが動いているあいだ、`stop.sh` はそのプロセスを止めません。停止は `user-service.sh stop` です。
 
-待受アドレスを変える場合は、環境変数を付けて `enable` を再実行します。ユニットの `ExecStart` がそのときの待受で書き換わります。
+待受アドレスを変える場合は、環境変数を付けて `enable` を再実行します。ユニットの `ExecStart` がそのときの待受で書き換わり、サービスは新しい待受で起動し直します。
 
 ```bash
 CODE_SERVER_BIND_HOST=127.0.0.1 ./scripts/linux/user-service.sh enable
@@ -225,7 +225,7 @@ CODE_SERVER_BIND_HOST=127.0.0.1 ./scripts/linux/user-service.sh enable
 
 パスワードを作り直す場合も `./scripts/linux/reset-password.sh` です。サービスが動いていれば、その場で再起動して新しいパスワードを反映します。
 
-`uninstall.sh` は本体を消す前に、登録済みのユーザーサービスを無効化してユニットを削除します。linger は残します。
+`uninstall.sh` は本体を消す前に `user-service.sh disable` を呼び、登録済みのユーザーサービスを無効化してユニットを削除します。linger は残します。
 
 ## ライセンス
 

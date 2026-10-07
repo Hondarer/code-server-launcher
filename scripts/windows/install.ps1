@@ -15,7 +15,6 @@ $config = Get-StudyConfig
 foreach ($dir in @(
         $config.BaseDir,
         $config.CacheDir,
-        $config.StateDir,
         $config.UserDataDir,
         $config.ExtensionsDir,
         $config.ConfigDir
