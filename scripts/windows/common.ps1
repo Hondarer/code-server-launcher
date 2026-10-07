@@ -261,11 +261,16 @@ function Get-StudyCodeServerProcessIds {
     return @($found)
 }
 
+# ポートで待ち受けているプロセスの PID を返す。netstat の出力と違い、表示言語に左右されない。
+function Get-StudyPortOwnerIds {
+    param([int]$Port)
+    $connections = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
+    return @($connections | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_.OwningProcess } | Sort-Object -Unique)
+}
+
 function Test-StudyPortListening {
     param([int]$Port)
-    $pattern = "[:.]$Port\s"
-    $lines = netstat.exe -ano | Select-String -Pattern "LISTENING" | Select-String -Pattern $pattern
-    return $null -ne $lines
+    return @(Get-StudyPortOwnerIds -Port $Port).Count -gt 0
 }
 
 function Get-StudyHttpStatus {
@@ -300,6 +305,8 @@ function Get-StudyHttpStatus {
     }
 }
 
+# Windows には外部のコンソールプロセスへ穏やかな終了を送る手段が乏しいため、プロセスツリーを強制終了する。
+# 通常の停止は、起動したウィンドウでの Ctrl+C を勧める。
 function Stop-StudyCodeServer {
     param($Config)
     $ids = @(Get-StudyCodeServerProcessIds -Config $Config)

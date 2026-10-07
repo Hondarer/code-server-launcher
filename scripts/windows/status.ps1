@@ -48,9 +48,25 @@ else {
     Write-Output "プロセス: stopped"
 }
 
-$listening = Test-StudyPortListening -Port $config.Port
+$owners = @(Get-StudyPortOwnerIds -Port $config.Port)
+$listening = $owners.Count -gt 0
 if ($listening) {
     Write-Output "ポート $($config.Port): listening"
+    foreach ($ownerId in $owners) {
+        $info = Get-CimInstance Win32_Process -Filter "ProcessId = $ownerId" -ErrorAction SilentlyContinue
+        $name = "unknown"
+        $label = "別のプロセス"
+        if ($null -ne $info) {
+            $name = $info.Name
+            if ($running -contains $ownerId -or $running -contains [int]$info.ParentProcessId) {
+                $label = "このサンプルの code-server"
+            }
+            elseif ([string]$info.ExecutablePath -eq $config.NodeExe) {
+                $label = "このサンプルの node.exe。起動元のプロセスは終了済み。止めるには taskkill /PID $ownerId /T /F"
+            }
+        }
+        Write-Output "  pid $ownerId ($name): $label"
+    }
 }
 else {
     Write-Output "ポート $($config.Port): closed"

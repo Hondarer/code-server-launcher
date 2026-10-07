@@ -115,6 +115,8 @@ New-NetFirewallRule -DisplayName "study-code-server 8000" -Direction Inbound -Pr
 
 ## Windows
 
+code-server の公式ドキュメントは Windows を配布対象として案内していませんが、リリースには `windows-amd64` の配布物が含まれています。このサンプルはそれを使います。
+
 PowerShell で、このリポジトリをカレントにして実行します。
 
 ```powershell
@@ -123,7 +125,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\status.ps1
 ```
 
-`start.ps1` はこのウィンドウのフォアグラウンドで code-server を動かします。終了は Ctrl+C です。起動し直す場合は `-Restart` を付けます。VS Code の端末から実行しても code-server 自身が待受を始めるよう、起動時に `VSCODE_IPC_HOOK_CLI` を外します。
+`start.ps1` はこのウィンドウのフォアグラウンドで code-server を動かします。終了は Ctrl+C です。code-server は終了処理をしてから止まります。起動し直す場合は `-Restart` を付けます。VS Code の端末から実行しても code-server 自身が待受を始めるよう、起動時に `VSCODE_IPC_HOOK_CLI` を外します。
+
+`stop.ps1` は、別のウィンドウから止めるためのものです。Windows には外のプロセスへ穏やかな終了を送る手段が乏しいため、プロセスツリーを強制終了します。`-Restart`、`reset-password.ps1`、`uninstall.ps1` も、起動中ならこの方法で止めます。ふだんは Ctrl+C で止めます。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1 -Restart
@@ -134,6 +138,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\uninstall.
 ```
 
 接続先は `http://127.0.0.1:8000/` です。同じ Windows 上のブラウザからは `http://localhost:8000/` でも開けます。配布物に同梱された `node.exe` を使うため、別途 Node.js は使いません。以前の手順でログオンタスク `study-code-server` を登録している場合、`uninstall.ps1` がそれを削除します。
+
+`status.ps1` は、ポートで待ち受けているプロセスの PID も表示します。このサンプル以外のプロセスがポートを使っている場合や、起動元のプロセスだけが先に終わって code-server の本体が残った場合に、どれを止めればよいか分かります。
 
 配置先:
 
@@ -146,9 +152,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\uninstall.
 | 配布アーカイブ | `%LOCALAPPDATA%\study-code-server\cache\` | 残す | 削除 |
 | code-server 自身のログ | `%LOCALAPPDATA%\code-server\Data\` の `coder-logs\` と `heartbeat` | 残す | この 2 つだけ削除 |
 
-ログは `start.ps1` を実行したウィンドウに出ます。同じ内容はファイルにも残ります。LAN 上の他のマシンからも Windows 版へ接続する場合は、TCP 8000 の受信を許可するファイアウォール規則を追加します。
+ログは `start.ps1` を実行したウィンドウに出ます。同じ内容はファイルにも残ります。
 
 展開先のパスが長くなる環境では、Windows の長いパスのサポートを有効にしてから `install.ps1` を再実行します。
+
+### 他のマシンから接続する
+
+既定の待受は `0.0.0.0:8000` で、LAN 上の他のマシンから接続できます。他のマシンのブラウザでは `http://<Windows の IP アドレス>:8000/` を開きます。
+
+受信を通すには、管理者として開いた PowerShell でポート 8000 の規則を追加します。ポートで指定する規則なので、版を上げて `node.exe` のパスが変わってもそのまま効きます。
+
+```powershell
+New-NetFirewallRule -DisplayName "study-code-server 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
+```
+
+初回の起動で、Windows Defender ファイアウォールが `node.exe` の通信を許可するか尋ねることがあります。ここは「許可」を選びます。「キャンセル」を選ぶと、その `node.exe` の受信を止めるブロック規則が作られます。ブロック規則は許可規則より優先されるため、上のポート規則があっても接続できなくなります。その場合は、同じユーザーで管理者として開いた PowerShell からブロック規則を消します。
+
+```powershell
+Get-NetFirewallApplicationFilter -Program "$env:LOCALAPPDATA\study-code-server\code-server-4.140.0\lib\node.exe" |
+  Get-NetFirewallRule | Where-Object Action -eq Block | Remove-NetFirewallRule
+```
+
+同じ Windows のブラウザからだけ使う場合は、「応用: Windows で待受を localhost に限定する」の設定にします。
 
 ## 永続化データ
 
@@ -234,7 +259,7 @@ $env:CODE_SERVER_BIND_HOST = "127.0.0.1"
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1 -Restart
 ```
 
-`127.0.0.1` にすると、待受は各 OS のループバックに限られます。WSL で Windows 側の localhost 転送を使う場合も、多くの環境では `127.0.0.1` のままで届きます。LAN や WSL の仮想 NIC からも届ける場合は `0.0.0.0` のままにします。ユーザーサービスを使っている場合は、同じ環境変数を付けて `user-service.sh enable` を再実行します。
+`127.0.0.1` にすると、待受は各 OS のループバックに限られます。WSL で Windows 側の localhost 転送を使う場合も、多くの環境では `127.0.0.1` のままで届きます。LAN や WSL の仮想 NIC からも届ける場合は `0.0.0.0` のままにします。ユーザーサービスを使っている場合は、同じ環境変数を付けて `user-service.sh enable` を再実行します。Windows で毎回 `127.0.0.1` にする方法は「応用: Windows で待受を localhost に限定する」です。
 
 ## セキュリティ
 
@@ -245,6 +270,28 @@ code-server はターミナルを含む開発環境です。このサンプル�
 1. [code-server の Releases](https://github.com/coder/code-server/releases) から Linux amd64 と Windows amd64 の `.tar.gz` を選ぶ。
 2. SHA-256 を計算し、`version.env` の版とハッシュを更新する。
 3. `uninstall` のあと `install` と `start` を実行する。`--purge` / `-Purge` を付けない限り、設定、ユーザーデータ、拡張機能は残る。拡張機能は新しい版でも、そのまま読み込まれる。
+4. Windows でも使う場合は、ログイン、フォルダを開く、ターミナル、拡張機能の導入を一通り試す。Windows 版は上流の CI で自動テストされていないため、版ごとに手元で確かめておく。
+
+## 応用: Windows で待受を localhost に限定する
+
+同じ Windows のブラウザからだけ使う場合は、待受をループバックに限定できます。ユーザー環境変数 `CODE_SERVER_BIND_HOST` を設定すると、以後の `start.ps1` はそれを使います。設定後に開いた PowerShell で `-Restart` を付けて起動し直します。
+
+```powershell
+[Environment]::SetEnvironmentVariable("CODE_SERVER_BIND_HOST", "127.0.0.1", "User")
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1 -Restart
+```
+
+ループバックだけで待ち受けるので、他のマシンからは接続できません。ファイアウォールの許可も要りません。ポート規則を追加していた場合は、管理者の PowerShell で外せます。ただし、WSL へのポート転送に同じ規則を使っている場合は残します。
+
+```powershell
+Remove-NetFirewallRule -DisplayName "study-code-server 8000"
+```
+
+既定の `0.0.0.0` へ戻す場合は、環境変数を消してから、新しい PowerShell で `-Restart` を付けて起動します。
+
+```powershell
+[Environment]::SetEnvironmentVariable("CODE_SERVER_BIND_HOST", $null, "User")
+```
 
 ## 応用: systemd ユーザーサービス
 
