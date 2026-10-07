@@ -60,23 +60,26 @@ Windows:
 ./scripts/linux/stop.sh
 ./scripts/linux/reset-password.sh
 ./scripts/linux/uninstall.sh           # 本体を削除し、設定は残す
-./scripts/linux/uninstall.sh --purge   # 設定、ユーザーデータ、キャッシュも削除
+./scripts/linux/uninstall.sh --purge   # 設定、ユーザーデータ、拡張機能、キャッシュも削除
 ```
 
 `stop.sh` は、このサンプルの設定ファイルで動いているプロセスを止めます。端末を閉じた場合も、そのシェルで動いていた code-server は終了します。
 
 配置先:
 
-| 用途 | パス |
-|---|---|
-| 本体 | `~/.local/lib/code-server-4.140.0` |
-| コマンド | `~/.local/bin/code-server` |
-| 設定 | `~/.config/study-code-server/config.yaml` |
-| ユーザーデータ | `~/.local/share/study-code-server/user-data` |
-| 拡張機能 | `~/.local/share/study-code-server/extensions` |
-| 配布アーカイブ | `~/.cache/study-code-server/` |
+| 用途 | パス | `uninstall.sh` | `--purge` |
+|---|---|---|---|
+| 本体 | `~/.local/lib/code-server-4.140.0` | 削除 | 削除 |
+| コマンド | `~/.local/bin/code-server` | 削除 | 削除 |
+| 設定 | `~/.config/study-code-server/config.yaml` | 残す | 削除 |
+| ユーザーデータ | `~/.local/share/study-code-server/user-data/` | 残す | 削除 |
+| 拡張機能 | `~/.local/share/study-code-server/extensions/` | 残す | 削除 |
+| 配布アーカイブ | `~/.cache/study-code-server/` | 残す | 削除 |
+| code-server 自身のログ | `~/.local/share/code-server/` の `coder-logs/` と `heartbeat` | 残す | この 2 つだけ削除 |
 
-ログは `start.sh` を実行した端末に出ます。
+`$XDG_DATA_HOME` を設定している場合、最後の行は `$XDG_DATA_HOME/code-server/` です。各ディレクトリの中身は「[永続化データ](#永続化データ)」にまとめています。
+
+ログは `start.sh` を実行した端末に出ます。同じ内容はファイルにも残ります。
 
 ### Windows のブラウザから WSL へ接続する
 
@@ -121,17 +124,75 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\uninstall.
 
 配置先:
 
-| 用途 | パス |
-|---|---|
-| 本体 | `%LOCALAPPDATA%\study-code-server\code-server-4.140.0` |
-| 設定 | `%USERPROFILE%\.config\study-code-server\config.yaml` |
-| ユーザーデータ | `%LOCALAPPDATA%\study-code-server\user-data` |
-| 拡張機能 | `%LOCALAPPDATA%\study-code-server\extensions` |
-| 配布アーカイブ | `%LOCALAPPDATA%\study-code-server\cache\` |
+| 用途 | パス | `uninstall.ps1` | `-Purge` |
+|---|---|---|---|
+| 本体 | `%LOCALAPPDATA%\study-code-server\code-server-4.140.0` | 削除 | 削除 |
+| 設定 | `%USERPROFILE%\.config\study-code-server\config.yaml` | 残す | 削除 |
+| ユーザーデータ | `%LOCALAPPDATA%\study-code-server\user-data\` | 残す | 削除 |
+| 拡張機能 | `%LOCALAPPDATA%\study-code-server\extensions\` | 残す | 削除 |
+| 配布アーカイブ | `%LOCALAPPDATA%\study-code-server\cache\` | 残す | 削除 |
+| code-server 自身のログ | `%LOCALAPPDATA%\code-server\Data\` の `coder-logs\` と `heartbeat` | 残す | この 2 つだけ削除 |
 
-ログは `start.ps1` を実行したウィンドウに出ます。LAN 上の他のマシンからも Windows 版へ接続する場合は、TCP 8000 の受信を許可するファイアウォール規則を追加します。
+ログは `start.ps1` を実行したウィンドウに出ます。同じ内容はファイルにも残ります。LAN 上の他のマシンからも Windows 版へ接続する場合は、TCP 8000 の受信を許可するファイアウォール規則を追加します。
 
 展開先のパスが長くなる環境では、Windows の長いパスのサポートを有効にしてから `install.ps1` を再実行します。
+
+## 永続化データ
+
+code-server が使い続けるデータは、OS ごとに次の場所にあります。以下の説明では、この基点からの相対パスで書きます。
+
+| 基点 | Linux / WSL | Windows |
+|---|---|---|
+| データ | `~/.local/share/study-code-server/` | `%LOCALAPPDATA%\study-code-server\` |
+| 設定 | `~/.config/study-code-server/` | `%USERPROFILE%\.config\study-code-server\` |
+
+起動時に `--user-data-dir` と `--extensions-dir` を指定しています。そのため、同じマシンの VS Code や、既定の場所を使う別の code-server とは、設定も拡張機能も共有しません。フォルダ名を `code-server` ではなく `study-code-server` にしているのも同じ理由です。Linux の `~/.config/code-server/config.yaml` と `~/.local/share/code-server/` は code-server の既定の置き場所で、`--config` を付けずに起動した code-server が読み書きします。
+
+| パス | 中身 |
+|---|---|
+| `extensions/` | インストールした拡張機能の本体と、その一覧の `extensions.json` |
+| `user-data/User/settings.json` | ユーザー設定。画面の「設定」で変えた内容 |
+| `user-data/User/keybindings.json`、`snippets/` | キーバインドとスニペット。作ったときにできる |
+| `user-data/User/globalStorage/` | 拡張機能が保存するデータ |
+| `user-data/User/workspaceStorage/` | ワークスペースごとの状態。開いていたタブなど |
+| `user-data/User/History/` | エディターのローカル履歴 |
+| `user-data/Machine/` | このマシンだけに効く設定 |
+| `user-data/logs/` | 起動ごとのログ。起動日時の名前のフォルダが増えていく |
+| `user-data/CachedProfilesData/` など | キャッシュ。消しても作り直される |
+| `config.yaml`(設定側) | 待受、認証方式、パスワード |
+
+ワークスペースの `.vscode/settings.json` は、ワークスペースのフォルダ側に保存されます。
+
+code-server は、上の指定とは関係なく、次の場所にも書きます。
+
+| 場所 | 中身 |
+|---|---|
+| Linux: `~/.local/share/code-server/`<br>Windows: `%LOCALAPPDATA%\code-server\Data\` | `coder-logs/` に code-server 本体の標準出力と標準エラーの写し、`heartbeat` に最終アクセスの印 |
+
+この場所は code-server の既定の置き場所で、ほかの code-server と共有することがあります。そのため `--purge` / `-Purge` は、`coder-logs` と `heartbeat` だけを消します。フォルダは空になった場合だけ消します。
+
+### よくある操作
+
+`user-data/` や `extensions/` を消したりコピーしたりする前に、`stop` で code-server を止めます。
+
+| したいこと | 方法 |
+|---|---|
+| 設定と拡張機能をバックアップする | `user-data/User/` と `extensions/` をコピーする。拡張機能はネイティブ部品を含むことがあるので、同じ OS の間で持ち運ぶ |
+| 設定を初期状態に戻す | `user-data/` を消す。拡張機能は残る |
+| 拡張機能をすべて外す | `extensions/` を消す |
+| ログを片付ける | `user-data/logs/` の古いフォルダと、code-server 自身の `coder-logs/` を消す |
+
+拡張機能は画面の拡張機能ビューから入れます。コマンドラインで入れる場合は、`--extensions-dir` と `--config` を必ず付けます。付けないと、拡張機能は既定の `~/.local/share/code-server/extensions` に入ってしまい、このサンプルの code-server からは見えません。`--config` を省くと、既定の `~/.config/code-server/config.yaml` も作られます。
+
+```bash
+~/.local/bin/code-server \
+  --config ~/.config/study-code-server/config.yaml \
+  --user-data-dir ~/.local/share/study-code-server/user-data \
+  --extensions-dir ~/.local/share/study-code-server/extensions \
+  --install-extension <拡張機能 ID>
+```
+
+`--list-extensions` で一覧、`--uninstall-extension <ID>` で削除です。入れた拡張機能は、起動中の画面を再読み込みすると使えます。
 
 ## パスワード
 
@@ -170,7 +231,7 @@ code-server はターミナルを含む開発環境です。このサンプル�
 
 1. [code-server の Releases](https://github.com/coder/code-server/releases) から Linux amd64 と Windows amd64 の `.tar.gz` を選ぶ。
 2. SHA-256 を計算し、`version.env` の版とハッシュを更新する。
-3. `uninstall` のあと `install` と `start` を実行する。`--purge` / `-Purge` を付けない限り、設定とユーザーデータは残る。
+3. `uninstall` のあと `install` と `start` を実行する。`--purge` / `-Purge` を付けない限り、設定、ユーザーデータ、拡張機能は残る。拡張機能は新しい版でも、そのまま読み込まれる。
 
 ## 応用: systemd ユーザーサービス
 

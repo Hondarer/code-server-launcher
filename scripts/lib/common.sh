@@ -41,6 +41,9 @@ CODE_SERVER_EXTENSIONS_DIR="${CODE_SERVER_DATA_DIR}/extensions"
 # 以前の版がバックグラウンド起動の PID とログを置いていた場所。現在は uninstall.sh --purge が消すだけ。
 CODE_SERVER_STATE_DIR="${HOME}/.local/state/study-code-server"
 CODE_SERVER_CACHE_DIR="${HOME}/.cache/study-code-server"
+# code-server が --user-data-dir と無関係に使う既定のデータ置き場。coder-logs と heartbeat を書く。
+# ほかの code-server と共有するので、このサンプルは自分が書くものだけを消す。
+CODE_SERVER_SHARED_DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/code-server"
 CODE_SERVER_UNIT_NAME="study-code-server.service"
 CODE_SERVER_ASSET="code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz"
 CODE_SERVER_ASSET_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/${CODE_SERVER_ASSET}"

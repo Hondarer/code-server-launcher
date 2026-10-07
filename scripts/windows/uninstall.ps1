@@ -27,7 +27,19 @@ if ($Purge) {
             Remove-Item -LiteralPath $dir -Recurse -Force
         }
     }
-    Write-Output "本体、設定、ユーザーデータ、ダウンロードキャッシュを削除しました。"
+    # 既定のデータ置き場はほかの code-server と共有するので、このサンプルが書くものだけを消す。
+    foreach ($name in @("coder-logs", "heartbeat")) {
+        $target = Join-Path $config.SharedDataDir $name
+        if (Test-Path -LiteralPath $target) {
+            Remove-Item -LiteralPath $target -Recurse -Force
+        }
+    }
+    foreach ($dir in @($config.SharedDataDir, (Split-Path -Parent $config.SharedDataDir))) {
+        if ((Test-Path -LiteralPath $dir) -and -not (Get-ChildItem -LiteralPath $dir -Force)) {
+            Remove-Item -LiteralPath $dir -Force
+        }
+    }
+    Write-Output "本体、設定、ユーザーデータ、拡張機能、ダウンロードキャッシュ、code-server のログを削除しました。"
 }
 else {
     Write-Output "本体を削除しました。設定とユーザーデータは残しています。"

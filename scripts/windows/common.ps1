@@ -75,6 +75,8 @@ function Get-StudyConfig {
         # 以前の版がバックグラウンド起動で使っていた場所とログオンタスク名。uninstall.ps1 の後片付けにだけ使う。
         StateDir       = $stateDir
         CacheDir       = Join-Path $base "cache"
+        # code-server が --user-data-dir と無関係に使う既定のデータ置き場。coder-logs と heartbeat を書く。
+        SharedDataDir  = Join-Path $env:LOCALAPPDATA "code-server\Data"
         TaskName       = "study-code-server"
     }
 }

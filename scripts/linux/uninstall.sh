@@ -27,7 +27,10 @@ rm -rf "${CODE_SERVER_INSTALL_DIR}"
 
 if [[ "${purge}" -eq 1 ]]; then
   rm -rf "${CODE_SERVER_CONFIG_DIR}" "${CODE_SERVER_DATA_DIR}" "${CODE_SERVER_STATE_DIR}" "${CODE_SERVER_CACHE_DIR}"
-  echo "本体、設定、ユーザーデータ、ダウンロードキャッシュを削除しました。"
+  rm -rf "${CODE_SERVER_SHARED_DATA_DIR}/coder-logs"
+  rm -f "${CODE_SERVER_SHARED_DATA_DIR}/heartbeat"
+  rmdir "${CODE_SERVER_SHARED_DATA_DIR}" 2>/dev/null || true
+  echo "本体、設定、ユーザーデータ、拡張機能、ダウンロードキャッシュ、code-server のログを削除しました。"
 else
   echo "本体を削除しました。設定とユーザーデータは残しています。"
   echo "完全に消す場合: ${SCRIPT_DIR}/uninstall.sh --purge"
