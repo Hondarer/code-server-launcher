@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # code-server をこのシェルのフォアグラウンドで起動する。
-# 終了は Ctrl+C、または別のシェルからの stop.sh。
+# 終了は Ctrl+C、または別のシェルからの stop.sh で行う。
 
 set -euo pipefail
 
@@ -20,30 +20,30 @@ require_cmd python3 ss
 require_installed
 require_workspace
 
-# シェル起動とユーザーサービスは同時に使わない。サービスの操作は user-service.sh に任せる。
+# シェル起動とユーザー サービスは同時には使用しない。サービスの操作は user-service.sh で行う。
 if user_service_active; then
-  echo "ユーザーサービス ${CODE_SERVER_UNIT_NAME} が待受を担当しています。このシェルでは起動しません。"
-  echo "停止は ${SCRIPT_DIR}/user-service.sh stop、シェル起動へ戻す場合は ${SCRIPT_DIR}/user-service.sh disable です。"
+  echo "ユーザー サービス ${CODE_SERVER_UNIT_NAME} が稼働しています。このシェルでは起動しません。"
+  echo "停止する場合は ${SCRIPT_DIR}/user-service.sh stop、シェル起動に戻す場合は ${SCRIPT_DIR}/user-service.sh disable を実行してください。"
   print_endpoints
-  # --restart はサービスを再起動しないので、その場合は失敗として返す。
+  # --restart はサービスを再起動しないため、その場合は失敗として終了する。
   exit "${restart}"
 fi
 if user_service_enabled; then
-  echo "ユーザーサービス ${CODE_SERVER_UNIT_NAME} が登録されています (停止中)。"
-  echo "サービスとして起動する場合は ${SCRIPT_DIR}/user-service.sh start です。"
-  echo "このシェルで起動する場合は、先に ${SCRIPT_DIR}/user-service.sh disable を実行します。"
+  echo "ユーザー サービス ${CODE_SERVER_UNIT_NAME} が登録されています (停止中)。"
+  echo "サービスとして起動する場合は ${SCRIPT_DIR}/user-service.sh start を実行してください。"
+  echo "このシェルで起動する場合は、事前に ${SCRIPT_DIR}/user-service.sh disable を実行してください。"
   exit 1
 fi
 
 created_password="$(ensure_config)"
 if [[ -n "${created_password}" ]]; then
   echo "設定ファイルを作成しました: ${CODE_SERVER_CONFIG_FILE}"
-  echo "ログインパスワード: ${created_password}"
+  echo "ログイン パスワード: ${created_password}"
 fi
 
 if code_server_running; then
   if [[ "${restart}" -eq 0 ]]; then
-    echo "既に起動しています。終了はそのシェルで Ctrl+C か、別のシェルから stop.sh です。"
+    echo "すでに起動しています。終了する場合はこのシェルで Ctrl+C を押すか、別のシェルから stop.sh を実行してください。"
     print_endpoints
     exit 0
   fi
@@ -58,8 +58,8 @@ mapfile -t server_args < <(code_server_args)
 echo "このシェルで code-server を起動します。終了は Ctrl+C です。"
 print_endpoints
 echo "パスワードの確認: grep '^password:' '${CODE_SERVER_CONFIG_FILE}'"
-# VS Code の端末では VSCODE_IPC_HOOK_CLI があると、code-server は
-# 待受を始めずに VS Code へ処理を返して終了する。
+# VS Code の端末環境では VSCODE_IPC_HOOK_CLI が存在すると、code-server が
+# 待受を開始せずに VS Code へ処理を戻して終了する。
 unset VSCODE_IPC_HOOK_CLI ELECTRON_RUN_AS_NODE
 cd "${CODE_SERVER_WORKSPACE}"
 exec "${CODE_SERVER_BIN}" "${server_args[@]}"

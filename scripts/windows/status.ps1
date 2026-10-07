@@ -1,5 +1,5 @@
-﻿# code-server の導入状態、待受、HTTP 応答を表示する。
-# パスワード自体は表示しない。待受が無い場合は終了コード 1。
+﻿# code-server の導入状態、待受状態、HTTP 応答を表示する。
+# パスワード自体は表示しない。待受が存在しない場合は終了コード 1。
 
 [CmdletBinding()]
 param()
@@ -16,7 +16,7 @@ Write-Output "ワークスペース: $($config.Workspace)"
 
 if (Test-CodeServerInstalled -Config $config) {
     Write-Output "導入先: $($config.InstallDir)"
-    # code-server を実行すると、設定ファイルが無い場合に既定の内容で作ってしまうので、package.json から読む。
+    # code-server を実行すると、設定ファイルが存在しない場合に既定内容で自動生成してしまうため、package.json から読み取る。
     $package = Get-Content -LiteralPath (Join-Path $config.AppDir "package.json") -Raw -Encoding UTF8 | ConvertFrom-Json
     Write-Output "バージョン: $($package.version)"
 }
@@ -32,10 +32,10 @@ if (Test-Path -LiteralPath $config.ConfigFile) {
         Write-Output "パスワード: 設定ファイルの password キー"
     }
     elseif ($hasHash) {
-        Write-Output "パスワード: hashed-password として保存されています。再設定は scripts\windows\reset-password.ps1"
+        Write-Output "パスワード: hashed-password として保存されています。再設定コマンド: scripts\windows\reset-password.ps1"
     }
     else {
-        Write-Output "パスワード: 設定ファイルに password がありません。"
+        Write-Output "パスワード: 設定ファイルに password キーが存在しません。"
     }
 }
 else {
@@ -64,7 +64,7 @@ if ($listening) {
                 $label = "このツールの code-server"
             }
             elseif ([string]$info.ExecutablePath -eq $config.NodeExe) {
-                $label = "このツールの node.exe。起動元のプロセスは終了済み。止めるには taskkill /PID $ownerId /T /F"
+                $label = "本ツールの node.exe。起動元プロセスは終了済み。停止コマンド: taskkill /PID $ownerId /T /F"
             }
         }
         Write-Output "  pid $ownerId ($name): $label"

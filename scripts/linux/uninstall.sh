@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# code-server の本体とシンボリックリンクを削除する。
-# 応用編のユーザーサービスが登録されていれば、user-service.sh disable で外す。
-# 設定とユーザーデータは残す。それらも消す場合は --purge を付ける。
+# code-server の本体とシンボリック リンクを削除する。
+# ユーザー サービスが登録されている場合は、user-service.sh disable で登録を解除する。
+# 設定とユーザー データは保持する。これらも削除する場合は --purge を指定する。
 
 set -euo pipefail
 
@@ -30,8 +30,8 @@ if [[ "${purge}" -eq 1 ]]; then
   rm -rf "${CODE_SERVER_SHARED_DATA_DIR}/coder-logs"
   rm -f "${CODE_SERVER_SHARED_DATA_DIR}/heartbeat"
   rmdir "${CODE_SERVER_SHARED_DATA_DIR}" 2>/dev/null || true
-  echo "本体、設定、ユーザーデータ、拡張機能、ダウンロードキャッシュ、code-server のログを削除しました。"
+  echo "本体、設定、ユーザー データ、拡張機能、ダウンロード キャッシュ、code-server のログを削除しました。"
 else
-  echo "本体を削除しました。設定とユーザーデータは残しています。"
-  echo "完全に消す場合: ${SCRIPT_DIR}/uninstall.sh --purge"
+  echo "本体を削除しました。設定とユーザー データは保持しています。"
+  echo "完全に削除する場合: ${SCRIPT_DIR}/uninstall.sh --purge"
 fi

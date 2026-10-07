@@ -1,4 +1,4 @@
-﻿# code-server の Windows standalone 版をユーザー領域へ導入し、待受設定を作る。
+﻿# code-server の Windows standalone 版をユーザー領域へ導入し、待受設定を作成する。
 # プロセスは起動しない。起動は start.ps1 が行う。
 
 [CmdletBinding()]
@@ -48,14 +48,14 @@ if (-not $hashOk) {
     }
 }
 else {
-    Write-Output "検証済みのアーカイブを使います: $archive"
+    Write-Output "検証済みのアーカイブを使用します: $archive"
 }
 
 $nodeReady = Test-CodeServerInstalled -Config $config
 if (-not $nodeReady) {
     $running = @(Get-LauncherCodeServerProcessIds -Config $config)
     if ($running.Count -gt 0) {
-        throw "code-server が動作中です。入れ直す前に scripts\windows\stop.ps1 を実行してください。"
+        throw "code-server が動作中です。再インストールする前に scripts\windows\stop.ps1 を実行してください。"
     }
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ("code-server-launcher-" + [guid]::NewGuid().ToString("n"))
     New-Item -ItemType Directory -Force -Path $temp | Out-Null
@@ -87,11 +87,11 @@ else {
 $created = Update-LauncherCodeServerConfig -Config $config -Mode Ensure
 if ($created) {
     Write-Output "設定ファイルを作成しました: $($config.ConfigFile)"
-    Write-Output "ログインパスワード: $created"
+    Write-Output "ログイン パスワード: $created"
 }
 else {
-    Write-Output "既存の設定を使います: $($config.ConfigFile)"
-    Write-Output "待受アドレスを $($config.BindAddr) に合わせました。"
+    Write-Output "既存の設定を使用します: $($config.ConfigFile)"
+    Write-Output "待受アドレスを $($config.BindAddr) に更新しました。"
 }
 
 Write-Output "導入が完了しました。"

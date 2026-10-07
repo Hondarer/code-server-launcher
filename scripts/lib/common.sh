@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # code-server-launcher の Linux / WSL スクリプト共通処理。
-# 各スクリプトから source する。直接は実行しない。
+# 各スクリプトから source で読み込む。直接の実行は想定しない。
 
 if [[ -z "${CODE_SERVER_LAUNCHER_ROOT:-}" ]]; then
   _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,8 +39,8 @@ CODE_SERVER_DATA_DIR="${HOME}/.local/share/code-server-launcher"
 CODE_SERVER_USER_DATA_DIR="${CODE_SERVER_DATA_DIR}/user-data"
 CODE_SERVER_EXTENSIONS_DIR="${CODE_SERVER_DATA_DIR}/extensions"
 CODE_SERVER_CACHE_DIR="${HOME}/.cache/code-server-launcher"
-# code-server が --user-data-dir と無関係に使う既定のデータ置き場。coder-logs と heartbeat を書く。
-# ほかの code-server と共有するので、このツールは自分が書くものだけを消す。
+# code-server が --user-data-dir の指定と無関係に使用する既定のデータ配置先。coder-logs と heartbeat を出力する。
+# 他の code-server と共有するため、本ツールが出力したもののみを削除する。
 CODE_SERVER_SHARED_DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/code-server"
 CODE_SERVER_UNIT_NAME="code-server-launcher.service"
 CODE_SERVER_ASSET="code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz"
@@ -79,11 +79,11 @@ require_installed() {
 }
 
 require_workspace() {
-  [[ -d "${CODE_SERVER_WORKSPACE}" ]] || die "ワークスペースがありません: ${CODE_SERVER_WORKSPACE}"
+  [[ -d "${CODE_SERVER_WORKSPACE}" ]] || die "ワークスペースが存在しません: ${CODE_SERVER_WORKSPACE}"
 }
 
-# 設定ファイルが無ければパスワード付きで作成し、そのパスワードを標準出力へ出す。
-# 既存ファイルでは bind-addr だけを現在の待受アドレスへ合わせ、パスワードは維持する。
+# 設定ファイルが存在しなければパスワード付きで作成し、生成したパスワードを標準出力へ出力する。
+# 既存ファイルでは bind-addr のみを現在の待受アドレスに更新し、パスワードは維持する。
 ensure_config() {
   ensure_dirs
   python3 - "${CODE_SERVER_CONFIG_FILE}" "${CODE_SERVER_BIND_ADDR}" <<'PY'
@@ -128,8 +128,8 @@ file.chmod(0o600)
 PY
 }
 
-# 新しい平文パスワードを設定し、hashed-password があれば取り除く。
-# 新しいパスワードだけを標準出力へ出す。
+# 新しい平文パスワードを設定し、hashed-password キーが存在する場合は削除する。
+# 新しいパスワードのみを標準出力へ出力する。
 reset_password_in_config() {
   ensure_dirs
   python3 - "${CODE_SERVER_CONFIG_FILE}" "${CODE_SERVER_BIND_ADDR}" <<'PY'
@@ -193,7 +193,7 @@ systemd_user_available() {
   systemctl --user show-environment >/dev/null 2>&1
 }
 
-# 以下はユーザーサービスの状態を調べるだけの関数。登録と削除は user-service.sh が行う。
+# 以下はユーザーサービスの状態を確認する関数。登録と削除は user-service.sh が行う。
 user_service_exists() {
   systemd_user_available && systemctl --user cat "${CODE_SERVER_UNIT_NAME}" >/dev/null 2>&1
 }
@@ -206,7 +206,7 @@ user_service_active() {
   systemd_user_available && systemctl --user is-active --quiet "${CODE_SERVER_UNIT_NAME}" >/dev/null 2>&1
 }
 
-# このツールの設定ファイルを指定して動いている code-server の PID を出す。
+# 本ツールの設定ファイルを指定して動作している code-server の PID を取得する。
 code_server_pids() {
   local pid_path pid cmdline
   for pid_path in /proc/[0-9]*; do
@@ -257,7 +257,7 @@ port_is_listening() {
 
 http_status() {
   local code
-  # 接続できない場合も curl は -w の 000 を出して非 0 で終わる。
+  # 接続できない場合も curl は -w で 000 を出力して非 0 で終了する。
   code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 3 \
     "http://127.0.0.1:${CODE_SERVER_PORT}/" 2>/dev/null)" || true
   printf '%s' "${code:-000}"
@@ -265,7 +265,7 @@ http_status() {
 
 print_endpoints() {
   echo "接続先: http://127.0.0.1:${CODE_SERVER_PORT}/"
-  echo "WSL の場合、Windows のブラウザからは http://localhost:${CODE_SERVER_PORT}/ で接続します。"
+  echo "WSL の場合、Windows のブラウザーからは http://localhost:${CODE_SERVER_PORT}/ で接続します。"
   echo "設定: ${CODE_SERVER_CONFIG_FILE}"
   echo "ワークスペース: ${CODE_SERVER_WORKSPACE}"
 }
@@ -276,10 +276,10 @@ download_release() {
   dest="${CODE_SERVER_CACHE_DIR}/${CODE_SERVER_ASSET}"
   partial="${dest}.partial"
   sha="${CODE_SERVER_LINUX_AMD64_SHA256}"
-  [[ -n "${sha}" ]] || die "CODE_SERVER_LINUX_AMD64_SHA256 が version.env にありません。"
+  [[ -n "${sha}" ]] || die "CODE_SERVER_LINUX_AMD64_SHA256 が version.env に定義されていません。"
   mkdir -p "${CODE_SERVER_CACHE_DIR}"
   if [[ -f "${dest}" ]] && echo "${sha}  ${dest}" | sha256sum -c --status; then
-    echo "検証済みのアーカイブを使います: ${dest}"
+    echo "検証済みのアーカイブを使用します: ${dest}"
     return 0
   fi
   echo "code-server ${CODE_SERVER_VERSION} をダウンロードします。"

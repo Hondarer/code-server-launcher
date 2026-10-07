@@ -1,8 +1,8 @@
-# 初回の install が実ファイルを生成する。このファイルはひな型であり、起動には使わない。
+# 初回 install 時に実ファイルが生成される。本ファイルはひな型であり、起動には使用しない。
 # Linux:    ~/.config/code-server-launcher/config.yaml
 # Windows:  %USERPROFILE%\.config\code-server-launcher\config.yaml
 #
-# password は install が生成する。実ファイルをリポジトリへ置かない。
+# password は install スクリプトが生成する。実ファイルはリポジトリ内に配置しない。
 
 bind-addr: 0.0.0.0:8000
 auth: password

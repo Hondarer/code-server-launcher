@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# code-server の導入状態、待受、HTTP 応答を表示する。
+# code-server の導入状態、待受状態、HTTP 応答を表示する。
 # パスワード自体は表示しない。
 
 set -euo pipefail
@@ -15,7 +15,7 @@ echo "ワークスペース: ${CODE_SERVER_WORKSPACE}"
 
 if code_server_installed; then
   echo "導入先: ${CODE_SERVER_INSTALL_DIR}"
-  # code-server を実行すると、設定ファイルが無い場合に既定の内容で作ってしまうので、package.json から読む。
+  # code-server コマンドを実行すると、設定ファイルが存在しない場合に既定内容で自動生成してしまうため、package.json から読み取る。
   echo "バージョン: $(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "${CODE_SERVER_INSTALL_DIR}/package.json")"
 else
   echo "導入先: 未導入"
@@ -26,9 +26,9 @@ if [[ -f "${CODE_SERVER_CONFIG_FILE}" ]]; then
   if grep -q '^password:' "${CODE_SERVER_CONFIG_FILE}"; then
     echo "パスワード: 設定ファイルの password キー"
   elif grep -q '^hashed-password:' "${CODE_SERVER_CONFIG_FILE}"; then
-    echo "パスワード: hashed-password として保存されています。再設定は scripts/linux/reset-password.sh"
+    echo "パスワード: hashed-password として保存されています。再設定コマンド: scripts/linux/reset-password.sh"
   else
-    echo "パスワード: 設定ファイルに password がありません。"
+    echo "パスワード: 設定ファイルに password キーが存在しません。"
   fi
 else
   echo "設定: 未作成"
@@ -43,9 +43,9 @@ fi
 
 if systemd_user_available; then
   if user_service_exists; then
-    echo "ユーザーサービス: $(systemctl --user is-active "${CODE_SERVER_UNIT_NAME}") ($(systemctl --user is-enabled "${CODE_SERVER_UNIT_NAME}" 2>/dev/null || echo unknown))"
+    echo "ユーザー サービス: $(systemctl --user is-active "${CODE_SERVER_UNIT_NAME}") ($(systemctl --user is-enabled "${CODE_SERVER_UNIT_NAME}" 2>/dev/null || echo unknown))"
   else
-    echo "ユーザーサービス: 未登録"
+    echo "ユーザー サービス: 未登録"
   fi
 fi
 

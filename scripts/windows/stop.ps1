@@ -1,6 +1,6 @@
-﻿# このツールの設定で起動している code-server を、別のウィンドウから強制終了する。
-# 通常は起動したウィンドウで Ctrl+C を押して止める。
-# 設定とユーザーデータは残す。
+﻿# 本ツールの設定で起動している code-server を、別のウィンドウから強制終了する。
+# 通常の停止操作には、起動したウィンドウでの Ctrl+C を推奨する。
+# 設定とユーザー データは保持する。
 
 [CmdletBinding()]
 param()
@@ -15,5 +15,5 @@ if (Stop-LauncherCodeServer -Config $config) {
     Write-Output "code-server を停止しました。"
 }
 else {
-    Write-Output "起動中の code-server はありません。"
+    Write-Output "起動中の code-server は存在しません。"
 }

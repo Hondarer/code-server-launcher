@@ -1,5 +1,5 @@
 ﻿# code-server-launcher の Windows スクリプト共通処理。
-# 各スクリプトからドットソースする。直接の起動は想定しない。
+# 各スクリプトからドットソースで読み込む。直接の実行は想定しない。
 
 Set-StrictMode -Version 2.0
 
@@ -30,7 +30,7 @@ function Get-LauncherConfig {
             "CODE_SERVER_WINDOWS_AMD64_SHA256"
         )) {
         if (-not $values.Contains($name) -or [string]::IsNullOrWhiteSpace($values[$name])) {
-            throw "version.env に $name がありません。"
+            throw "version.env に $name が定義されていません。"
         }
     }
 
@@ -72,7 +72,7 @@ function Get-LauncherConfig {
         UserDataDir    = Join-Path $base "user-data"
         ExtensionsDir  = Join-Path $base "extensions"
         CacheDir       = Join-Path $base "cache"
-        # code-server が --user-data-dir と無関係に使う既定のデータ置き場。coder-logs と heartbeat を書く。
+        # code-server が --user-data-dir の指定と無関係に使用する既定のデータ配置先。coder-logs と heartbeat を出力する。
         SharedDataDir  = Join-Path $env:LOCALAPPDATA "code-server\Data"
     }
 }
@@ -83,7 +83,7 @@ function Assert-WindowsAmd64 {
         $arch = $env:PROCESSOR_ARCHITEW6432
     }
     if ($arch -ne "AMD64") {
-        throw "このツールが検証している Windows アーキテクチャは amd64 です (現在: $arch)。"
+        throw "本ツールが対応している Windows アーキテクチャーは amd64 です (現在: $arch)。"
     }
 }
 
@@ -224,7 +224,7 @@ function Get-CodeServerArguments {
         "--config", $Config.ConfigFile,
         "--bind-addr", $Config.BindAddr,
         "--auth", "password",
-        # 前回開いたパスより、この起動で指定したワークスペースを優先する。
+        # 前回開いたフォルダーよりも、今回の起動で指定したワークスペースを優先する。
         "--ignore-last-opened",
         "--user-data-dir", $Config.UserDataDir,
         "--extensions-dir", $Config.ExtensionsDir,
@@ -257,7 +257,7 @@ function Get-LauncherCodeServerProcessIds {
     return @($found)
 }
 
-# ポートで待ち受けているプロセスの PID を返す。netstat の出力と違い、表示言語に左右されない。
+# ポートで待ち受けているプロセスの PID を取得する。netstat の出力と異なり、OS の表示言語に影響されない。
 function Get-LauncherPortOwnerIds {
     param([int]$Port)
     $connections = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
@@ -301,8 +301,8 @@ function Get-LauncherHttpStatus {
     }
 }
 
-# Windows には外部のコンソールプロセスへ穏やかな終了を送る手段が乏しいため、プロセスツリーを強制終了する。
-# 通常の停止は、起動したウィンドウでの Ctrl+C を勧める。
+# Windows では外部コンソール プロセスへ安全な終了シグナルを送る標準手段が制限されているため、プロセス ツリーを強制終了する。
+# 通常の停止操作には、起動したウィンドウでの Ctrl+C を推奨する。
 function Stop-LauncherCodeServer {
     param($Config)
     $ids = @(Get-LauncherCodeServerProcessIds -Config $Config)
@@ -319,7 +319,7 @@ function Stop-LauncherCodeServer {
 function Write-LauncherEndpoints {
     param($Config)
     Write-Output "接続先: http://127.0.0.1:$($Config.Port)/"
-    Write-Output "同じ Windows 上のブラウザからは http://localhost:$($Config.Port)/ で接続します。"
+    Write-Output "同一 Windows 上のブラウザーからは http://localhost:$($Config.Port)/ で接続します。"
     Write-Output "設定: $($Config.ConfigFile)"
     Write-Output "ワークスペース: $($Config.Workspace)"
 }

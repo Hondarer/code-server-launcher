@@ -1,5 +1,5 @@
 ﻿# code-server の本体を削除する。
-# 設定とユーザーデータは残す。それらも消す場合は -Purge を付ける。
+# 設定とユーザー データは保持する。これらも削除する場合は -Purge を指定する。
 
 [CmdletBinding()]
 param(
@@ -24,7 +24,7 @@ if ($Purge) {
             Remove-Item -LiteralPath $dir -Recurse -Force
         }
     }
-    # 既定のデータ置き場はほかの code-server と共有するので、このツールが書くものだけを消す。
+    # 既定のデータ配置先は他の code-server と共有するため、本ツールが出力したもののみを削除する。
     foreach ($name in @("coder-logs", "heartbeat")) {
         $target = Join-Path $config.SharedDataDir $name
         if (Test-Path -LiteralPath $target) {
@@ -36,9 +36,9 @@ if ($Purge) {
             Remove-Item -LiteralPath $dir -Force
         }
     }
-    Write-Output "本体、設定、ユーザーデータ、拡張機能、ダウンロードキャッシュ、code-server のログを削除しました。"
+    Write-Output "本体、設定、ユーザー データ、拡張機能、ダウンロード キャッシュ、code-server のログを削除しました。"
 }
 else {
-    Write-Output "本体を削除しました。設定とユーザーデータは残しています。"
-    Write-Output "完全に消す場合: $(Join-Path $PSScriptRoot 'uninstall.ps1') -Purge"
+    Write-Output "本体を削除しました。設定とユーザー データは保持しています。"
+    Write-Output "完全に削除する場合: $(Join-Path $PSScriptRoot 'uninstall.ps1') -Purge"
 }
