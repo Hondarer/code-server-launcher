@@ -9,7 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
 
-require_cmd curl tar sha256sum python3 openssl
+# curl は packages/ にアーカイブがなく、ダウンロードが必要な場合のみ使用する。
+require_cmd tar sha256sum python3 openssl
 [[ "$(uname -m)" == "x86_64" ]] || die "本ツールが対応している Linux アーキテクチャーは x86_64 です (現在: $(uname -m))。"
 
 ensure_dirs

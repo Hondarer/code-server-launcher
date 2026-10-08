@@ -4,7 +4,8 @@
 Set-StrictMode -Version 2.0
 
 function Get-LauncherConfig {
-    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+    # ProviderPath は UNC パス (\\wsl.localhost\... など) でもプロバイダー名を含まないため、外部コマンドへそのまま渡せる。
+    $repoRoot = [System.IO.Path]::GetFullPath((Resolve-Path (Join-Path $PSScriptRoot "..\..")).ProviderPath)
     $versionFile = Join-Path $repoRoot "version.env"
     if (-not (Test-Path -LiteralPath $versionFile)) {
         throw "version.env が見つかりません: $versionFile"
@@ -46,6 +47,11 @@ function Get-LauncherConfig {
         $workspace = $env:CODE_SERVER_WORKSPACE
     }
 
+    $linuxSha256 = ""
+    if ($values.Contains("CODE_SERVER_LINUX_AMD64_SHA256")) {
+        $linuxSha256 = $values["CODE_SERVER_LINUX_AMD64_SHA256"].ToLowerInvariant()
+    }
+
     $version = $values["CODE_SERVER_VERSION"]
     $port = $values["CODE_SERVER_PORT"]
     $bindHost = $values["CODE_SERVER_BIND_HOST"]
@@ -63,6 +69,11 @@ function Get-LauncherConfig {
         AssetName      = "code-server-$version-windows-amd64.tar.gz"
         AssetUrl       = "https://github.com/coder/code-server/releases/download/v$version/code-server-$version-windows-amd64.tar.gz"
         Sha256         = $values["CODE_SERVER_WINDOWS_AMD64_SHA256"].ToLowerInvariant()
+        LinuxAssetName = "code-server-$version-linux-amd64.tar.gz"
+        LinuxAssetUrl  = "https://github.com/coder/code-server/releases/download/v$version/code-server-$version-linux-amd64.tar.gz"
+        LinuxSha256    = $linuxSha256
+        # 事前に取得した配布アーカイブの置き場所。ここに照合済みのアーカイブがあれば、ネットワークに接続せずに導入する。
+        PackagesDir    = Join-Path $repoRoot "packages"
         BaseDir        = $base
         InstallDir     = $installDir
         NodeExe        = Join-Path $installDir "lib\node.exe"
@@ -85,6 +96,51 @@ function Assert-WindowsAmd64 {
     if ($arch -ne "AMD64") {
         throw "本ツールが対応している Windows アーキテクチャーは amd64 です (現在: $arch)。"
     }
+}
+
+function Test-LauncherFileHash {
+    param(
+        [string]$Path,
+        [string]$Sha256
+    )
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $false
+    }
+    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+    return $actual -eq $Sha256
+}
+
+# URL からファイルを取得し、SHA-256 を照合してから配置する。照合済みのファイルが既に存在すれば取得しない。
+function Save-LauncherVerifiedFile {
+    param(
+        [string]$Url,
+        [string]$Destination,
+        [string]$Sha256
+    )
+    if (Test-LauncherFileHash -Path $Destination -Sha256 $Sha256) {
+        Write-Output "照合済みのアーカイブが存在します: $Destination"
+        return
+    }
+    Write-Output "ダウンロードします: $Url"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
+    $partial = "$Destination.partial"
+    if (Test-Path -LiteralPath $partial) {
+        Remove-Item -LiteralPath $partial -Force
+    }
+    $curl = Join-Path $env:SystemRoot "System32\curl.exe"
+    & $curl -fL --retry 3 --retry-delay 2 --connect-timeout 20 -o $partial $Url
+    if ($LASTEXITCODE -ne 0) {
+        if (Test-Path -LiteralPath $partial) {
+            Remove-Item -LiteralPath $partial -Force
+        }
+        throw "ダウンロードに失敗しました (curl exit $LASTEXITCODE)。"
+    }
+    if (-not (Test-LauncherFileHash -Path $partial -Sha256 $Sha256)) {
+        $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $partial).Hash.ToLowerInvariant()
+        Remove-Item -LiteralPath $partial -Force
+        throw "SHA-256 が一致しません。期待 $Sha256 / 実際 $actual"
+    }
+    Move-Item -LiteralPath $partial -Destination $Destination -Force
 }
 
 function New-LauncherPassword {

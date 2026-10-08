@@ -22,33 +22,25 @@ foreach ($dir in @(
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
 }
 
-$archive = Join-Path $config.CacheDir $config.AssetName
-$hashOk = $false
-if (Test-Path -LiteralPath $archive) {
-    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
-    $hashOk = $actual -eq $config.Sha256
-}
-
-if (-not $hashOk) {
-    Write-Output "code-server $($config.Version) をダウンロードします。"
-    $partial = "$archive.partial"
-    if (Test-Path -LiteralPath $partial) {
-        Remove-Item -LiteralPath $partial -Force
+# packages\ にアーカイブがあればそれを照合して使用し、ネットワークには接続しない。
+# なければキャッシュ フォルダーへ取得する。
+$packaged = Join-Path $config.PackagesDir $config.AssetName
+if (Test-Path -LiteralPath $packaged -PathType Leaf) {
+    if (-not (Test-LauncherFileHash -Path $packaged -Sha256 $config.Sha256)) {
+        throw "packages\ のアーカイブの SHA-256 が一致しません: $packaged"
     }
-    $curl = Join-Path $env:SystemRoot "System32\curl.exe"
-    & $curl -fL --retry 3 --retry-delay 2 --connect-timeout 20 -o $partial $config.AssetUrl
-    if ($LASTEXITCODE -ne 0) {
-        throw "ダウンロードに失敗しました (curl exit $LASTEXITCODE)。"
-    }
-    Move-Item -LiteralPath $partial -Destination $archive -Force
-    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
-    if ($actual -ne $config.Sha256) {
-        Remove-Item -LiteralPath $archive -Force
-        throw "SHA-256 が一致しません。期待 $($config.Sha256) / 実際 $actual"
-    }
+    Write-Output "packages\ の照合済みアーカイブを使用します (オフライン導入): $packaged"
+    $archive = $packaged
 }
 else {
-    Write-Output "検証済みのアーカイブを使用します: $archive"
+    $archive = Join-Path $config.CacheDir $config.AssetName
+    if (Test-LauncherFileHash -Path $archive -Sha256 $config.Sha256) {
+        Write-Output "検証済みのアーカイブを使用します: $archive"
+    }
+    else {
+        Write-Output "code-server $($config.Version) をダウンロードします。"
+        Save-LauncherVerifiedFile -Url $config.AssetUrl -Destination $archive -Sha256 $config.Sha256
+    }
 }
 
 $nodeReady = Test-CodeServerInstalled -Config $config
@@ -60,7 +52,9 @@ if (-not $nodeReady) {
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ("code-server-launcher-" + [guid]::NewGuid().ToString("n"))
     New-Item -ItemType Directory -Force -Path $temp | Out-Null
     try {
-        & tar.exe -xzf $archive -C $temp
+        # PATH 上の Git for Windows などに含まれる GNU tar は C:\ を含むパスを扱えないため、OS 標準の tar.exe を使用する。
+        $tar = Join-Path $env:SystemRoot "System32\tar.exe"
+        & $tar -xzf $archive -C $temp
         if ($LASTEXITCODE -ne 0) {
             throw "アーカイブの展開に失敗しました (tar exit $LASTEXITCODE)。"
         }

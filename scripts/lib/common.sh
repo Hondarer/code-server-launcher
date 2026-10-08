@@ -43,8 +43,13 @@ CODE_SERVER_CACHE_DIR="${HOME}/.cache/code-server-launcher"
 # 他の code-server と共有するため、本ツールが出力したもののみを削除する。
 CODE_SERVER_SHARED_DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/code-server"
 CODE_SERVER_UNIT_NAME="code-server-launcher.service"
+# 事前に取得した配布アーカイブの置き場所。ここに照合済みのアーカイブがあれば、ネットワークに接続せずに導入する。
+CODE_SERVER_PACKAGES_DIR="${CODE_SERVER_LAUNCHER_ROOT}/packages"
+CODE_SERVER_RELEASE_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}"
 CODE_SERVER_ASSET="code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz"
-CODE_SERVER_ASSET_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/${CODE_SERVER_ASSET}"
+CODE_SERVER_ASSET_URL="${CODE_SERVER_RELEASE_URL}/${CODE_SERVER_ASSET}"
+CODE_SERVER_WINDOWS_ASSET="code-server-${CODE_SERVER_VERSION}-windows-amd64.tar.gz"
+CODE_SERVER_WINDOWS_ASSET_URL="${CODE_SERVER_RELEASE_URL}/${CODE_SERVER_WINDOWS_ASSET}"
 
 die() {
   echo "Error: $*" >&2
@@ -270,29 +275,60 @@ print_endpoints() {
   echo "ワークスペース: ${CODE_SERVER_WORKSPACE}"
 }
 
-download_release() {
-  local dest partial sha
-  require_cmd curl sha256sum tar
-  dest="${CODE_SERVER_CACHE_DIR}/${CODE_SERVER_ASSET}"
+# ファイルの SHA-256 が期待値と一致するかを確認する。
+file_sha256_matches() {
+  local file="$1" sha="$2"
+  [[ -f "${file}" ]] && echo "${sha}  ${file}" | sha256sum -c --status
+}
+
+# URL からファイルを取得し、SHA-256 を照合してから配置する。照合済みのファイルが既に存在すれば取得しない。
+fetch_verified() {
+  local url="$1" dest="$2" sha="$3" partial
+  require_cmd curl sha256sum
   partial="${dest}.partial"
+  if file_sha256_matches "${dest}" "${sha}"; then
+    echo "照合済みのアーカイブが存在します: ${dest}"
+    return 0
+  fi
+  echo "ダウンロードします: ${url}"
+  mkdir -p "$(dirname "${dest}")"
+  rm -f "${partial}"
+  curl -fL --retry 3 --retry-delay 2 --connect-timeout 20 -o "${partial}" "${url}"
+  if ! file_sha256_matches "${partial}" "${sha}"; then
+    rm -f "${partial}"
+    die "SHA-256 が一致しません: ${url}"
+  fi
+  mv "${partial}" "${dest}"
+}
+
+# 導入に使用する配布アーカイブを用意し、そのパスを CODE_SERVER_ARCHIVE に設定する。
+# packages/ にアーカイブがあればそれを照合して使用し、ネットワークには接続しない。
+# なければキャッシュ ディレクトリへ取得する。
+download_release() {
+  local sha packaged
+  require_cmd sha256sum
   sha="${CODE_SERVER_LINUX_AMD64_SHA256}"
   [[ -n "${sha}" ]] || die "CODE_SERVER_LINUX_AMD64_SHA256 が version.env に定義されていません。"
-  mkdir -p "${CODE_SERVER_CACHE_DIR}"
-  if [[ -f "${dest}" ]] && echo "${sha}  ${dest}" | sha256sum -c --status; then
-    echo "検証済みのアーカイブを使用します: ${dest}"
+  packaged="${CODE_SERVER_PACKAGES_DIR}/${CODE_SERVER_ASSET}"
+  if [[ -f "${packaged}" ]]; then
+    file_sha256_matches "${packaged}" "${sha}" || die "packages/ のアーカイブの SHA-256 が一致しません: ${packaged}"
+    echo "packages/ の照合済みアーカイブを使用します (オフライン導入): ${packaged}"
+    CODE_SERVER_ARCHIVE="${packaged}"
+    return 0
+  fi
+  CODE_SERVER_ARCHIVE="${CODE_SERVER_CACHE_DIR}/${CODE_SERVER_ASSET}"
+  if file_sha256_matches "${CODE_SERVER_ARCHIVE}" "${sha}"; then
+    echo "検証済みのアーカイブを使用します: ${CODE_SERVER_ARCHIVE}"
     return 0
   fi
   echo "code-server ${CODE_SERVER_VERSION} をダウンロードします。"
-  rm -f "${partial}"
-  curl -fL --retry 3 --retry-delay 2 --connect-timeout 20 -o "${partial}" "${CODE_SERVER_ASSET_URL}"
-  mv "${partial}" "${dest}"
-  echo "${sha}  ${dest}" | sha256sum -c - || die "SHA-256 が一致しません: ${dest}"
+  fetch_verified "${CODE_SERVER_ASSET_URL}" "${CODE_SERVER_ARCHIVE}" "${sha}"
 }
 
 extract_release() {
   local tmp extracted
   tmp="$(mktemp -d)"
-  if ! tar -C "${tmp}" -xzf "${CODE_SERVER_CACHE_DIR}/${CODE_SERVER_ASSET}"; then
+  if ! tar -C "${tmp}" -xzf "${CODE_SERVER_ARCHIVE}"; then
     rm -rf "${tmp}"
     die "アーカイブの展開に失敗しました。"
   fi

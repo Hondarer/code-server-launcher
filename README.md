@@ -20,12 +20,14 @@ Linux でユーザー サービスとして常駐させる場合のみ、linger 
 ```text
 code-server-launcher/
 +-- version.env                  # バージョン、待受の既定値、配布アーカイブの SHA-256
++-- packages/                    # 事前に取得した配布アーカイブの置き場所 (オフライン導入用、Git 管理外)
 +-- config/
 |   \-- config.yaml.example      # 設定ファイルのひな型 (起動には使用しない)
 \-- scripts/
     +-- lib/
     |   \-- common.sh            # Linux スクリプトの共通処理
     +-- linux/
+    |   +-- download.sh          # 配布アーカイブを packages/ へ事前に取得
     |   +-- install.sh           # 導入と設定ファイルの作成
     |   +-- start.sh             # フォアグラウンドで起動
     |   +-- stop.sh              # 別の端末から停止
@@ -35,6 +37,7 @@ code-server-launcher/
     |   \-- user-service.sh      # 応用: systemd ユーザー サービス
     \-- windows/
         +-- common.ps1           # Windows スクリプトの共通処理
+        +-- download.ps1
         +-- install.ps1
         +-- start.ps1
         +-- stop.ps1
@@ -50,7 +53,7 @@ code-server-launcher/
 Linux / WSL:
 
 - x86_64 (`install.sh` が `uname -m` で確認)
-- `curl`、`tar`、`sha256sum`、`python3`、`openssl`、`ss`
+- `curl`、`tar`、`sha256sum`、`python3`、`openssl`、`ss` (`packages/` からオフラインで導入する場合、`install.sh` は `curl` を使用しない)
 - ユーザー サービスを使用する場合のみ、systemd のユーザー セッション (`systemctl --user`) と、linger を有効化するための `loginctl`
 
 Windows:
@@ -80,13 +83,34 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1
 
 `install` スクリプトは初回実行時に限り、ログイン パスワードを自動生成して表示します。ブラウザーで `http://localhost:8000/` を開き、表示されたパスワードでログインします。
 
+### オフライン導入
+
+インターネットに接続できない環境へ導入する場合は、接続できる環境で配布アーカイブを `packages/` へ事前に取得しておきます。
+
+```bash
+./scripts/linux/download.sh          # Linux 版のみ
+./scripts/linux/download.sh --all    # Linux 版と Windows 版
+```
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\download.ps1         # Windows 版のみ
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\download.ps1 -All    # Windows 版と Linux 版
+```
+
+`download` スクリプトは取得したアーカイブの SHA-256 を `version.env` の値と照合し、一致した場合のみ `packages/` に配置します。照合済みのアーカイブが既に存在すれば再取得しません。取得する環境のアーキテクチャーは問いません。
+
+`packages/` を含むリポジトリ一式を導入先へ持ち込み、通常どおり `install` スクリプトを実行します。`install` スクリプトは `packages/` に該当バージョンのアーカイブがあれば、SHA-256 を照合したうえでそれを使用し、ネットワークには接続しません。照合に失敗した場合はダウンロードへ切り替えずにエラーで終了します。`packages/` にアーカイブがなければ、従来どおりキャッシュ ディレクトリへ取得します。
+
+`packages/` 配下のアーカイブは `.gitignore` により Git の管理対象外です。`uninstall` スクリプトは `--purge` または `-Purge` を指定しても `packages/` を削除しません。
+
 ## スクリプト一覧
 
 ### Linux / WSL
 
 | スクリプト | 動作 |
 |---|---|
-| `install.sh` | 配布アーカイブを `~/.cache/code-server-launcher/` へ取得し、SHA-256 を照合して `~/.local/lib/code-server-<バージョン>` へ展開する。照合済みのアーカイブが存在すれば再取得しない。`~/.local/bin/code-server` にシンボリック リンクを作成し、設定ファイルを生成する。code-server 自体は起動しない |
+| `download.sh [--all]` | 配布アーカイブを `packages/` へ取得し、SHA-256 を照合する。`--all` 指定時は Windows 版も取得する |
+| `install.sh` | `packages/` に配布アーカイブがあればそれを、なければ `~/.cache/code-server-launcher/` へ取得したものを使用し、SHA-256 を照合して `~/.local/lib/code-server-<バージョン>` へ展開する。照合済みのアーカイブが存在すれば再取得しない。`~/.local/bin/code-server` にシンボリック リンクを作成し、設定ファイルを生成する。code-server 自体は起動しない |
 | `start.sh [--restart]` | 実行シェル プロセスを code-server に置き換え、フォアグラウンドで動作させる。ログはその端末に出力される |
 | `stop.sh` | 起動中の code-server に SIGTERM を送信し、5 秒以内に終了しなければ SIGKILL で強制終了する |
 | `status.sh` | バージョン、待受アドレス、ワークスペース、導入先、設定、プロセス、ユーザー サービス、ポート、HTTP 応答を表示する。パスワードは表示しない。待受が存在しなければ終了コード 1 |
@@ -98,7 +122,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1
 
 | スクリプト | 動作 |
 |---|---|
-| `install.ps1` | 配布アーカイブを `%LOCALAPPDATA%\code-server-launcher\cache\` へ取得し、SHA-256 を照合して `%LOCALAPPDATA%\code-server-launcher\code-server-<バージョン>` へ展開する。設定ファイルを生成する。code-server 自体は起動しない |
+| `download.ps1 [-All]` | 配布アーカイブを `packages\` へ取得し、SHA-256 を照合する。`-All` 指定時は Linux 版も取得する |
+| `install.ps1` | `packages\` に配布アーカイブがあればそれを、なければ `%LOCALAPPDATA%\code-server-launcher\cache\` へ取得したものを使用し、SHA-256 を照合して `%LOCALAPPDATA%\code-server-launcher\code-server-<バージョン>` へ展開する。設定ファイルを生成する。code-server 自体は起動しない |
 | `start.ps1 [-Restart]` | 実行ウィンドウのフォアグラウンドで、同梱の `node.exe` を通じて code-server を動作させる。ログはそのウィンドウに出力される |
 | `stop.ps1` | 起動中の code-server プロセス ツリーを `taskkill /T /F` で強制終了する |
 | `status.ps1` | `status.sh` と同様の項目 (ユーザー サービスを除く) に加え、ポートで待ち受けているプロセスの PID と、それが本ツールの管理対象かを表示する。待受が存在しなければ終了コード 1 |
@@ -352,7 +377,7 @@ code-server は端末のシェル実行権限を含む開発環境です。本�
 
 1. [code-server の Releases](https://github.com/coder/code-server/releases) から、対象バージョンの Linux amd64 および Windows amd64 の `.tar.gz` 配布物を確認する。
 2. SHA-256 ハッシュ値を算出し、`version.env` のバージョン番号およびハッシュ値を更新する。
-3. `uninstall` スクリプトを実行後、`install` および `start` を実行する。`--purge` または `-Purge` を指定しない限り、設定ファイル、ユーザー データ、拡張機能は保持される。
+3. `uninstall` スクリプトを実行後、`install` および `start` を実行する。オフライン導入を行う場合は、先に `download` スクリプトで新しいバージョンのアーカイブを `packages/` へ取得する。`--purge` または `-Purge` を指定しない限り、設定ファイル、ユーザー データ、拡張機能は保持される。
 4. Windows 環境でも利用する場合は、ログイン、フォルダーを開く操作、内蔵端末、拡張機能のインストールなどの基本動作を確認する。Windows 版は上流の CI で自動テストが実施されていないため、バージョンごとに実機で動作確認を行う。
 
 ## 応用: Windows で待受を localhost に限定する
