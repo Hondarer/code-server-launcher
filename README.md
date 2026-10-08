@@ -1,6 +1,8 @@
 # code-server-launcher
 
-[code-server](https://github.com/coder/code-server) を、Linux (WSL を含む) と Windows のユーザー領域へ導入し、ポート 8000 で動作させるためのスクリプト集です。導入するバージョンは `version.env` で固定し、配布アーカイブの SHA-256 を照合してから展開します。Coder の公式プロジェクトではありません。導入作業およびコマンドによる起動・停止に管理者権限は不要です。Linux でユーザー サービスとして常駐させる場合のみ、linger の有効化に管理者権限が必要となる場合があります (「[応用: systemd ユーザー サービス](#応用-systemd-ユーザー-サービス-linux--wsl)」を参照)。
+[code-server](https://github.com/coder/code-server) を、Linux (WSL を含む) と Windows のユーザー領域へ導入し、ポート 8000 で動作させるためのスクリプト集です。導入するバージョンは `version.env` で固定し、配布アーカイブの SHA-256 を照合してから展開します。  
+導入作業およびコマンドによる起動・停止に管理者権限は不要です。  
+Linux でユーザー サービスとして常駐させる場合のみ、linger の有効化に管理者権限が必要となる場合があります (「[応用: systemd ユーザー サービス](#応用-systemd-ユーザー-サービス-linux--wsl)」を参照)。
 
 | 項目 | 値 |
 |---|---|
@@ -129,12 +131,16 @@ code-server には次の引数を渡して実行します。
 <ワークスペース>
 ```
 
-停止操作は、起動した端末で Ctrl+C を入力するのが基本です。code-server が終了処理を実行したうえで安全に停止します。端末ウィンドウを閉じた場合も終了します。別の端末から停止させる場合は `stop` スクリプトを使用します。
+停止操作は、起動した端末で Ctrl+C を入力します。  
+code-server が終了処理を実行したうえで安全に停止します。  
+端末ウィンドウを閉じた場合も終了します。  
+別の端末から停止させる場合は `stop` スクリプトを使用します。
 
 - Linux の `stop.sh` は SIGTERM を送信し、5 秒経過してもプロセスが残存していれば SIGKILL で強制終了します。ユーザー サービスが稼働中の場合は停止せず、`user-service.sh stop` の実行を案内して終了コード 1 で終了します。
 - Windows の `stop.ps1` はプロセス ツリーを強制終了します。Windows では外部プロセスへ安全な終了シグナルを送信する標準的な手段が制限されているためです。`start.ps1 -Restart`、`reset-password.ps1`、`uninstall.ps1` においても、起動中プロセスはこの方式で停止します。
 
-`stop` スクリプトが停止対象とするのは、本ツールの設定ファイルを `--config` 引数に指定しているプロセスのみです。同一マシン上で動作している他の code-server プロセスには影響を与えません。
+`stop` スクリプトが停止対象とするのは、本ツールの設定ファイルを `--config` 引数に指定しているプロセスのみです。  
+同一マシン上で動作している他の code-server プロセスには影響を与えません。
 
 ## 設定値と環境変数
 
@@ -171,7 +177,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1 
 
 ### ワークスペース
 
-起動時に開くワークスペース フォルダーの既定値は、本リポジトリのルート ディレクトリです。`install` スクリプトにフォルダーを指定するオプションはありません。変更する場合は、起動前に環境変数 `CODE_SERVER_WORKSPACE` を指定します。
+起動時に開くワークスペース フォルダーの既定値は、本リポジトリのルート ディレクトリです。  
+`install` スクリプトにフォルダーを指定するオプションはありません。変更する場合は、起動前に環境変数 `CODE_SERVER_WORKSPACE` を指定します。
 
 ```bash
 CODE_SERVER_WORKSPACE="$HOME/work/my-project" ./scripts/linux/start.sh --restart
@@ -184,7 +191,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\start.ps1 
 Remove-Item Env:CODE_SERVER_WORKSPACE
 ```
 
-起動引数に `--ignore-last-opened` を付与しているため、前回開いたフォルダーよりも今回の起動時の指定が優先されます。ただし、ブラウザーのアクセス URL に `?folder=...` や `?workspace=...` などのクエリ パラメーターが含まれている場合は URL 側の指定が優先されます。その場合は `http://localhost:8000/` へ再度アクセスしてください。
+起動引数に `--ignore-last-opened` を付与しているため、前回開いたフォルダーよりも今回の起動時の指定が優先されます。  
+ただし、ブラウザーのアクセス URL に `?folder=...` や `?workspace=...` などのクエリ パラメーターが含まれている場合は URL 側の指定が優先されます。その場合は `http://localhost:8000/` へ再度アクセスしてください。
 
 ## パスワード
 
@@ -199,7 +207,8 @@ disable-telemetry: true
 disable-update-check: true
 ```
 
-ファイルのアクセス権限は、Linux ではファイルに `600` (ディレクトリは `700`) を設定し、Windows ではアクセス権の継承を無効化して現在の実行ユーザーのみに制限します。パスワードは次のコマンドで確認できます。
+ファイルのアクセス権限は、Linux ではファイルに `600` (ディレクトリは `700`) を設定し、Windows ではアクセス権の継承を無効化して現在の実行ユーザーのみに制限します。  
+パスワードは次のコマンドで確認できます。
 
 ```bash
 grep '^password:' ~/.config/code-server-launcher/config.yaml
@@ -209,7 +218,8 @@ grep '^password:' ~/.config/code-server-launcher/config.yaml
 Select-String -Path "$env:USERPROFILE\.config\code-server-launcher\config.yaml" -Pattern '^password:'
 ```
 
-`reset-password` スクリプトは、新しいパスワードを生成して表示します。前述の 6 つのキーを再設定し、`hashed-password` キーが存在する場合は削除します。その他の設定行はそのまま維持します。
+`reset-password` スクリプトは、新しいパスワードを生成して表示します。  
+前述の 6 つのキーを再設定し、`hashed-password` キーが存在する場合は削除します。その他の設定行はそのまま維持します。
 
 - code-server がシェル上で起動中の場合は、該当プロセスを停止します。続いて `start` スクリプトを実行すると、新しいパスワードが適用されます。
 - (Linux) ユーザー サービスが稼働中の場合は、サービスを自動で再起動して新しいパスワードを反映します。
