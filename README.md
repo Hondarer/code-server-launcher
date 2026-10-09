@@ -3,6 +3,7 @@
 [code-server](https://github.com/coder/code-server) を、Linux (WSL を含む) と Windows のユーザー領域へ導入し、ポート 8000 で動作させるためのスクリプト集です。導入するバージョンは `version.env` で固定し、配布アーカイブの SHA-256 を照合してから展開します。  
 導入作業およびコマンドによる起動・停止に管理者権限は不要です。  
 Linux でユーザー サービスとして常駐させる場合のみ、linger の有効化に管理者権限が必要となる場合があります (「[応用: systemd ユーザー サービス](#応用-systemd-ユーザー-サービス-linux--wsl)」を参照)。
+Windows サービスとして常駐させる場合は、サービスの登録・管理に管理者権限が必要です (「[応用: Windows サービス](#応用-windows-サービス)」を参照)。
 
 | 項目 | 値 |
 |---|---|
@@ -13,7 +14,7 @@ Linux でユーザー サービスとして常駐させる場合のみ、linger 
 | 対象 | Linux x86_64、Windows amd64 |
 | 動作確認環境 | WSL2 上の Oracle Linux 8、Windows 11 Pro for Workstations (PowerShell 5.1) |
 
-起動の基本操作は、シェルで `start` スクリプトを実行する方法です。code-server はその端末のフォアグラウンドで動作し、Ctrl+C で終了します。Linux では、ログアウト後も稼働させ続けるための systemd ユーザー サービスを応用手順として用意しています。
+起動の基本操作は、シェルで `start` スクリプトを実行する方法です。code-server はその端末のフォアグラウンドで動作し、Ctrl+C で終了します。ログアウト後も稼働させ続けるための応用手順として、Linux では systemd ユーザー サービス、Windows では WinSW による Windows サービスの登録方法を用意しています。
 
 ## 構成
 
@@ -130,7 +131,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\download.p
 | `reset-password.ps1` | ログイン パスワードを再生成して表示する |
 | `uninstall.ps1 [-Purge]` | 本体を削除する。`-Purge` 指定時は設定とデータも削除する |
 
-Windows 向けには常駐機能 (Windows サービスやログオン タスク) を提供していません。
+Windows のスクリプトにはサービスやログオン タスクを登録・管理する機能はありません。サービスとして運用する場合は、後述の WinSW による手順で別途登録・管理します。
 
 ## 起動と停止
 
@@ -469,6 +470,95 @@ sudo loginctl enable-linger "$USER"
 ```bash
 loginctl disable-linger "$USER"
 ```
+
+## 応用: Windows サービス
+
+Windows 起動時に code-server を自動起動し、ログアウト後も稼働させる場合は、[WinSW](https://github.com/winsw/winsw/tree/v2.12.0) を使用して Windows サービスに登録します。この手順は WinSW 2.12.0 の設定仕様に基づく手動登録の例です。Windows 実機でのサービス動作確認は未実施です。
+
+サービスの登録・起動・停止・削除には管理者権限が必要です。code-server の実行アカウントは、通常の導入に使用した Windows ユーザーに設定します。本ツールの設定ファイルは導入ユーザーだけにアクセスを許可しているため、別のアカウントではそのまま利用できません。WinSW の既定の実行アカウントは LocalSystem なので、登録後、初回起動の前に必ず変更してください。code-server の内蔵端末もサービスの実行アカウントの権限で動作します。
+
+### 導入とサービス定義
+
+1. 導入ユーザーの通常の PowerShell で `install.ps1` と `start.ps1` を実行し、ブラウザーでログインできることを確認します。確認後は Ctrl+C で停止します。
+2. [WinSW 2.12.0 の配布ページ](https://github.com/winsw/winsw/releases/tag/v2.12.0) から `WinSW.NET461.exe` を取得します。.NET Framework 4.6.1 以降が必要です。オフライン環境では事前に取得して持ち込みます。WinSW は本ツールの `download.ps1` の取得・ハッシュ照合対象には含まれません。
+3. 管理者権限の PowerShell で `C:\Program Files\code-server-launcher-service` を作成し、取得したファイルを `CodeServerLauncher.exe` という名前で配置します。サービスの実行ユーザーに、このフォルダーの読み取り・実行権限と、配下の `logs` フォルダーへの書き込み権限を付与します。
+4. 同じフォルダーに次の `CodeServerLauncher.xml` を UTF-8 で保存します。`C:\Users\alice` は導入ユーザーの実際のプロファイル パスに、`D:\work\my-project` は存在するローカルのワークスペースに置き換えてください。導入先を変更している場合は各パスも合わせます。XML 内のパスに `&` が含まれる場合は `&amp;` と記述します。
+
+```xml
+<service>
+  <id>CodeServerLauncher</id>
+  <name>code-server-launcher</name>
+  <description>code-server development environment</description>
+  <executable>C:\Users\alice\AppData\Local\code-server-launcher\code-server-4.140.0\lib\node.exe</executable>
+  <arguments>"C:\Users\alice\AppData\Local\code-server-launcher\code-server-4.140.0" --config "C:\Users\alice\.config\code-server-launcher\config.yaml" --bind-addr 0.0.0.0:8000 --auth password --ignore-last-opened --user-data-dir "C:\Users\alice\AppData\Local\code-server-launcher\user-data" --extensions-dir "C:\Users\alice\AppData\Local\code-server-launcher\extensions" "D:\work\my-project"</arguments>
+  <workingdirectory>D:\work\my-project</workingdirectory>
+  <env name="USERPROFILE" value="C:\Users\alice"/>
+  <env name="LOCALAPPDATA" value="C:\Users\alice\AppData\Local"/>
+  <env name="APPDATA" value="C:\Users\alice\AppData\Roaming"/>
+  <env name="VSCODE_IPC_HOOK_CLI" value=""/>
+  <env name="ELECTRON_RUN_AS_NODE" value=""/>
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="3 sec"/>
+  <stoptimeout>15 sec</stoptimeout>
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll"/>
+</service>
+```
+
+この定義は `start.ps1` を経由せず、同梱の `node.exe` を直接起動します。`CODE_SERVER_PORT`、`CODE_SERVER_BIND_HOST`、`CODE_SERVER_WORKSPACE` や `version.env` の変更は自動反映されません。ポート・待受ホスト・ワークスペースは XML の引数と作業ディレクトリで指定し、localhost に限定する場合は `--bind-addr 127.0.0.1:8000` に変更します。設定ファイルの `bind-addr` より、この引数が優先されます。起動時に必要な設定ファイルとデータ フォルダーは、通常の導入・起動で事前に作成しておきます。
+
+サービスからは対話デスクトップやログオン時のドライブ割り当てを前提にできません。この例では、リポジトリ、導入先、ワークスペースを Windows のローカル ディスクに配置してください。WSL の UNC パス上に置いたファイルは、このサービス手順の対象外です。
+
+設定要素の詳細と停止処理は [WinSW 2.12.0 の XML 設定仕様](https://github.com/winsw/winsw/blob/v2.12.0/doc/xmlConfigFile.md) を参照してください。WinSW は停止時に Ctrl+C による終了を試み、タイムアウトした場合は強制終了します。この例では異常終了後に 3 秒の待機を経て再起動し、標準出力・標準エラーを `logs` 配下へ保存します。
+
+### 登録と実行アカウントの設定
+
+管理者権限の PowerShell で登録します。この段階ではまだ起動しません。
+
+```powershell
+Set-Location "C:\Program Files\code-server-launcher-service"
+.\CodeServerLauncher.exe install
+services.msc
+```
+
+「サービス」で `code-server-launcher` のプロパティを開き、「ログオン」タブの「アカウント」に導入ユーザーを指定して、Windows アカウントのパスワードを入力します。Windows Hello の PIN や code-server のログイン パスワードとは別です。「サービスとしてログオン」の権限が必要です。組織のポリシーで権限が拒否される場合は、管理者に設定を依頼してください。Windows アカウントのパスワードを変更した際は、この設定も更新します。XML にはアカウントのパスワードを保存しません。
+
+アカウントの設定が完了したら、同じ管理者権限の PowerShell で起動します。
+
+```powershell
+.\CodeServerLauncher.exe start
+.\CodeServerLauncher.exe status
+```
+
+サービスの状態だけでなく、導入ユーザーの通常の PowerShell で `status.ps1` を実行し、ポートと HTTP 応答を確認します。その後ブラウザーでログインし、内蔵端末とワークスペースへのアクセスも確認してください。Windows の再起動後とログアウト後にも接続できることを確認します。接続方法とファイアウォール設定は通常起動時と同じです。
+
+### 停止・再起動・ログの確認
+
+以下は管理者権限の PowerShell で、WinSW を配置したフォルダーから実行します。
+
+```powershell
+.\CodeServerLauncher.exe stopwait  # 停止完了まで待つ。自動起動の設定は維持
+.\CodeServerLauncher.exe start
+.\CodeServerLauncher.exe restart
+.\CodeServerLauncher.exe status
+Get-Content .\logs\CodeServerLauncher.out.log -Tail 50 -Wait
+# エラーは logs\CodeServerLauncher.err.log、ラッパーのログは logs\CodeServerLauncher.wrapper.log
+```
+
+Windows のスクリプトは、このサービスの登録状態を検出しません。サービス運用中は `start.ps1`、`start.ps1 -Restart`、`stop.ps1` による起動・停止と併用せず、WinSW で管理してください。プロセスだけを強制終了すると、サービスの回復設定により再起動される場合があります。
+
+- パスワード変更: 先に `stopwait` でサービスを停止し、導入ユーザーの通常の PowerShell で `reset-password.ps1` を実行してから、管理者権限でサービスを `start` します。
+- 設定変更: `stopwait` で停止してから XML を変更し、`start` します。サービス登録時の設定 (`startmode` や `onfailure` など) を変更する場合は、停止後に `uninstall` と `install` を実行し、実行アカウントを再設定してから起動します。
+- バージョン更新: `stopwait` で停止し、導入ユーザーで通常の `uninstall.ps1` と `install.ps1` を実行します。XML の実行ファイルと引数に含まれるバージョン付きパスを更新してから、サービスを `start` します。
+- 本体の削除・通常起動への復帰: 次のコマンドでサービスを停止・登録解除してから、必要に応じて導入ユーザーで `uninstall.ps1` または `start.ps1` を実行します。`uninstall.ps1` だけではサービス登録は解除されません。
+
+```powershell
+Set-Location "C:\Program Files\code-server-launcher-service"
+.\CodeServerLauncher.exe stopwait
+.\CodeServerLauncher.exe uninstall
+```
+
+登録解除後、不要になった WinSW の実行ファイル、XML、ログは手動で削除できます。
 
 ## ライセンス
 
